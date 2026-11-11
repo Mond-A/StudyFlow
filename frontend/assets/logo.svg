@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="StudyFlow">
+  <rect width="64" height="64" rx="16" fill="#0b1220"/>
+  <path d="M17 20.5c5.5-2.8 10.2-2.2 15 1.2v24.5c-4.8-3.4-9.5-4-15-1.2V20.5Z" fill="#60a5fa"/>
+  <path d="M47 20.5c-5.5-2.8-10.2-2.2-15 1.2v24.5c4.8-3.4 9.5-4 15-1.2V20.5Z" fill="#e2e8f0"/>
+  <path d="M32 23v23" stroke="#0b1220" stroke-width="2"/>
+  <circle cx="32" cy="12" r="3.2" fill="#2dd4bf"/>
+</svg>

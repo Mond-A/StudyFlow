@@ -1,0 +1,83 @@
+/* Print-friendly daily report */
+@media print {
+  @page {
+    margin: 14mm;
+  }
+
+  body {
+    background: #fff !important;
+    color: #111827;
+    font-size: 11pt;
+  }
+
+  .sidebar,
+  .mobile-header,
+  .app-footer,
+  .page-actions,
+  .report-date-nav,
+  .toast-container,
+  .modal-overlay,
+  .skip-link,
+  .ai-banner,
+  .report-note-card .btn {
+    display: none !important;
+  }
+
+  .app-main {
+    margin-left: 0 !important;
+  }
+
+  .page-content {
+    padding: 0 !important;
+  }
+
+  .page-shell {
+    max-width: none;
+  }
+
+  .page-header {
+    margin-bottom: 12px;
+  }
+
+  .page-subtitle,
+  .eyebrow {
+    color: #4b5563 !important;
+  }
+
+  .card,
+  .report-hero,
+  .report-metric {
+    box-shadow: none !important;
+    border-color: #d1d5db !important;
+    break-inside: avoid;
+  }
+
+  .report-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .report-side {
+    display: block;
+  }
+
+  .report-side .card {
+    margin-bottom: 10px;
+  }
+
+  .report-updates-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .report-hero {
+    background: #fff !important;
+  }
+
+  .suggestions-card {
+    background: #fff !important;
+  }
+
+  a {
+    color: inherit !important;
+    text-decoration: none !important;
+  }
+}
