@@ -996,3 +996,93 @@ body:not([data-route="settings"]) .btn-sm {
     overflow-x: auto;
   }
 }
+
+/* AI status / classification notices must follow the global theme.
+   Legacy AI banners use pale blue/yellow surfaces that are unreadable in dark. */
+[data-theme="dark"] .ai-banner,
+[data-theme="dark"] .ai-banner.is-live,
+[data-theme="dark"] .ai-banner.is-demo {
+  border-color: var(--sf-color-border-2) !important;
+  background: var(--sf-color-surface-2) !important;
+  color: var(--sf-color-text-2) !important;
+}
+
+[data-theme="dark"] .ai-banner-icon {
+  border-color: var(--sf-color-border-2) !important;
+  background: var(--sf-color-surface) !important;
+  color: var(--sf-color-accent-text) !important;
+}
+
+[data-theme="dark"] .ai-banner.is-demo .ai-banner-icon {
+  color: var(--sf-color-warning) !important;
+}
+
+[data-theme="dark"] .ai-banner-title {
+  color: var(--sf-color-text) !important;
+}
+
+[data-theme="dark"] .ai-provider,
+[data-theme="dark"] .ai-time,
+[data-theme="dark"] .ai-disclaimer {
+  color: var(--sf-color-text-3) !important;
+}
+
+[data-theme="dark"] .ai-banner-copy p {
+  color: var(--sf-color-text-2) !important;
+}
+
+[data-theme="dark"] .ai-mode-live {
+  border-color: color-mix(in srgb, var(--sf-color-accent) 34%, var(--sf-color-border-2)) !important;
+  background: var(--sf-color-accent-soft) !important;
+  color: var(--sf-color-accent-text) !important;
+}
+
+[data-theme="dark"] .ai-mode-demo {
+  border-color: color-mix(in srgb, var(--sf-color-warning) 34%, var(--sf-color-border-2)) !important;
+  background: var(--sf-color-warning-soft) !important;
+  color: var(--sf-color-warning) !important;
+}
+
+[data-theme="dark"] .ai-mode-unavailable {
+  border-color: color-mix(in srgb, var(--sf-color-danger) 34%, var(--sf-color-border-2)) !important;
+  background: var(--sf-color-danger-soft) !important;
+  color: var(--sf-color-danger) !important;
+}
+
+[data-theme="dark"] .notice-warning {
+  border-color: color-mix(in srgb, var(--sf-color-warning) 32%, var(--sf-color-border-2)) !important;
+  background: var(--sf-color-warning-soft) !important;
+  color: var(--sf-color-warning) !important;
+}
+
+[data-theme="dark"] .notice-info {
+  border-color: color-mix(in srgb, var(--sf-color-accent) 32%, var(--sf-color-border-2)) !important;
+  background: var(--sf-color-surface-2) !important;
+  color: var(--sf-color-text-2) !important;
+}
+
+[data-theme="dark"] .ai-error-panel {
+  border-color: color-mix(in srgb, var(--sf-color-danger) 34%, var(--sf-color-border-2)) !important;
+  background: var(--sf-color-danger-soft) !important;
+}
+
+[data-theme="dark"] .ai-error-panel strong {
+  color: var(--sf-color-danger) !important;
+}
+
+[data-theme="dark"] .ai-error-panel p,
+[data-theme="dark"] .ai-manual-check,
+[data-theme="dark"] .ai-warnings li {
+  color: var(--sf-color-text-3) !important;
+}
+
+[data-theme="dark"] .ai-classify-hint {
+  color: var(--sf-color-text-3) !important;
+}
+
+[data-theme="dark"] .ai-classify-hint .ai-mode-badge,
+[data-theme="dark"] .ai-classify-hint .ai-mode-live {
+  border-color: color-mix(in srgb, var(--sf-color-accent) 34%, var(--sf-color-border-2)) !important;
+  background: var(--sf-color-accent-soft) !important;
+  color: var(--sf-color-accent-text) !important;
+}

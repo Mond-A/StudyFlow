@@ -101,6 +101,7 @@ Settings 保持已验收版本，仅把主题偏好从“页面内主题”提�
 - [Planner Acrylic Modal · 1440](screenshots/migration-planner-modal-1440.png)
 - [Planner Modal · 390](screenshots/migration-planner-modal-390.png)
 - [Analytics 深色成绩表格](screenshots/migration-analytics-table-dark-1440.png)
+- [Errors AI 归类深色提示](screenshots/migration-errors-ai-notice-dark-1440.png)（用实际 `aiBanner` 标记做视觉预览，未调用 AI）
 - [Settings 全站主题 · 浅色](screenshots/migration-settings-light-1440.png)
 - [Settings 全站主题 · 深色](screenshots/migration-settings-dark-1440.png)
 
@@ -182,6 +183,8 @@ Settings 保持已验收版本，仅把主题偏好从“页面内主题”提�
 - 深色 Notes Toast UI 正文/工具栏可见：通过
 - 深色 Analytics 图表文字与表格可读：通过
 - 深色 Modal：Acrylic `rgba(44,44,44,0.8)` + `blur(28px)`：通过
+- Errors AI 归类真实分析提示：深色 banner `rgb(50,50,50)`、正文 `rgb(214,214,214)`、实时徽标 `#7cc0ff`，不再出现浅色闪光面板：通过
+- Errors 顶部“AI 实时分析 / AI 归类需人工确认”提示：徽标使用深色 accent surface，通过
 
 ### 交互 / 功能
 
