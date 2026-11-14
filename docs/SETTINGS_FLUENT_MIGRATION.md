@@ -117,10 +117,10 @@ Fluent v3.2.1 不会从 `value` attribute 自动回填。实现为：
 ### 页面主题与 Fluent 主题
 
 - `@fluentui/tokens` 的 `webLightTheme` / `webDarkTheme` 通过本地 `Fluent.setTheme()` 应用。
-- 进入 Settings 时应用；离开 Settings 时清除 `data-theme` 并恢复 light，避免影响其他页面。
+- 进入 Settings 时应用；离开 Settings 后保留全站 `data-theme`，由全站 Fluent shell 继承。
 - 深色主题覆盖整个 Settings 页面外壳：侧栏、移动端顶栏、页面标题、所有 section、表单、页脚、Toast 和 Dialog。
 - 主题/动效偏好保存在 `localStorage`，不调用 API、不写 SQLite。
-- 当前主题作用域仅限 Settings；其他未迁移页面保持原设计，这是刻意隔离。
+- 主题由 Settings 控件管理，已经提升为全站主题；九个页面的迁移细节见 `docs/ALL_PAGES_FLUENT_MIGRATION.md`。
 
 ## CSS 冲突处理
 
@@ -167,7 +167,7 @@ Fluent v3.2.1 不会从 `value` attribute 自动回填。实现为：
 - 数据导出链路：`GET /api/export` 200
 - 配置模板复制：通过（剪贴板内容 323 字符）
 - 主题持久化：通过
-- 离开 Settings 后主题、Fluent DOM 和 reduce-motion 类清理：通过
+- 离开 Settings 后全站主题保留、Fluent DOM 不泄漏、reduce-motion 页面类清理：通过
 - 其他 9 个页面 × 1440/390 共 20 次加载：通过
 - 后端 pytest：**28 passed**
 
@@ -211,7 +211,7 @@ Fluent v3.2.1 不会从 `value` attribute 自动回填。实现为：
 
 ## 已知问题
 
-1. **主题目前只在 Settings 生效**。其他页面尚未迁移，离开 Settings 会恢复原浅色设计；这是本阶段的隔离策略。
+1. **主题入口在 Settings，作用域已提升为全站**。Settings 仍是主题/跟随系统/减少动画的控制面板；离开 Settings 后主题会保留。九个页面迁移细节见 `docs/ALL_PAGES_FLUENT_MIGRATION.md`。
 2. Fluent Web Components 预构建 bundle 包含全部 42 个组件，约 267 KB；Settings 首次进入会加载，尚未按组件 tree-shaking。
 3. 浏览器验证目前只覆盖 Chrome 157；Edge/Firefox/Safari 尚未验证。
 4. Fluent 的 Checkbox 在没有官方 `--strokeWidthThin` 时没有可见边框；当前使用 token 补偿 + Settings 作用域边框回退。

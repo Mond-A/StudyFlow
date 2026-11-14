@@ -29,10 +29,7 @@ AI_VISION_API_KEY=your_vision_key
 AI_VISION_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
 AI_VISION_MODEL=qwen-vl-max`;
 
-const FLUENT_STYLES = [
-  "/css/fluent/studyflow-fluent-tokens.css",
-  "/css/settings-fluent.css",
-];
+const FLUENT_STYLES = ["/css/settings-fluent.css"];
 const THEME_KEY = "studyflow.settings.theme";
 const FOLLOW_SYSTEM_KEY = "studyflow.settings.follow-system";
 const REDUCE_MOTION_KEY = "studyflow.settings.reduce-motion";
@@ -748,7 +745,6 @@ function cleanup() {
   }
   themeMedia = null;
   motionMedia = null;
-  document.documentElement.removeAttribute("data-theme");
   document.documentElement.removeAttribute("data-settings-reduce-motion");
   document.body.classList.remove("sfl-reduce-motion");
   const durations = ["--durationFaster", "--durationFast", "--durationNormal", "--durationGentle", "--durationSlow"];
@@ -756,8 +752,8 @@ function cleanup() {
   if (fluentApi) {
     fluentApi.applyFluentTheme(fluentApi.webLightTheme);
   }
-  const themeMeta = document.querySelector('meta[name="theme-color"]');
-  if (themeMeta) themeMeta.content = "#f3f2f1";
+  // The global data-theme is intentionally preserved. Settings owns the
+  // preference, while the Fluent global shell applies it on every page.
 }
 
 async function render(container) {

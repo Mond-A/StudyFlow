@@ -1,40 +1,51 @@
 /** Chart.js setup shared by the analytics dashboard. */
 
 const CHART_FONT =
-  '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif';
-
-let defaultsApplied = false;
+  '"Segoe UI Variable Text", "Segoe UI", -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif';
 
 export const CHART_COLORS = [
-  "#2563eb",
-  "#0f766e",
-  "#a16207",
-  "#6d4bd8",
-  "#be185d",
-  "#0e7490",
-  "#4d7c0f",
-  "#c2410c",
-  "#4f46e5",
-  "#5d6775",
+  "#3b82f6",
+  "#0d9488",
+  "#d97706",
+  "#8b5cf6",
+  "#e11d48",
+  "#0891b2",
+  "#65a30d",
+  "#ea580c",
+  "#6366f1",
+  "#64748b",
 ];
+
+function cssColor(name, fallback) {
+  const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return value || fallback;
+}
+
+function chartGridColor() {
+  return document.documentElement.dataset.theme === "dark"
+    ? "rgba(173, 173, 173, 0.16)"
+    : "rgba(97, 97, 97, 0.14)";
+}
 
 export function chartsAvailable() {
   return Boolean(window.Chart && typeof window.Chart === "function");
 }
 
 export function configureCharts() {
-  if (!chartsAvailable() || defaultsApplied) return;
+  if (!chartsAvailable()) return;
   const Chart = window.Chart;
   const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-  Chart.defaults.font.family = CHART_FONT;
+  Chart.defaults.font.family = cssColor("--sf-font-family-base", CHART_FONT);
   Chart.defaults.font.size = 12;
-  Chart.defaults.color = "#5d6775";
-  Chart.defaults.borderColor = "rgba(104, 116, 131, 0.18)";
+  Chart.defaults.color = cssColor("--sf-color-text-3", "#616161");
+  Chart.defaults.borderColor = chartGridColor();
   Chart.defaults.animation = reduceMotion ? false : { duration: 320, easing: "easeOutQuart" };
   Chart.defaults.plugins.legend.labels.usePointStyle = true;
   Chart.defaults.plugins.legend.labels.boxWidth = 8;
   Chart.defaults.plugins.legend.labels.padding = 16;
-  Chart.defaults.plugins.tooltip.backgroundColor = "#0f172a";
+  Chart.defaults.plugins.tooltip.backgroundColor = cssColor("--sf-color-text", "#242424");
+  Chart.defaults.plugins.tooltip.titleColor = cssColor("--sf-color-surface", "#ffffff");
+  Chart.defaults.plugins.tooltip.bodyColor = cssColor("--sf-color-surface", "#ffffff");
   Chart.defaults.plugins.tooltip.padding = 12;
   Chart.defaults.plugins.tooltip.cornerRadius = 8;
   Chart.defaults.plugins.tooltip.titleFont = { weight: "600", size: 12 };
@@ -42,7 +53,6 @@ export function configureCharts() {
   Chart.defaults.elements.line.tension = 0.32;
   Chart.defaults.elements.point.radius = 2.5;
   Chart.defaults.elements.point.hoverRadius = 4;
-  defaultsApplied = true;
 }
 
 export function createChart(canvas, config) {
@@ -90,7 +100,7 @@ export function lineOptions({ yTitle = "得分率 (%)", showLegend = true, sugge
         beginAtZero: false,
         suggestedMin: 40,
         suggestedMax,
-        grid: { color: "rgba(148, 163, 184, 0.16)" },
+        grid: { color: chartGridColor() },
         ticks: {
           callback(value) {
             return `${value}${yTitle.includes("%") ? "%" : ""}`;
@@ -105,7 +115,7 @@ export function barOptions({ horizontal = false } = {}) {
   const valueScale = {
     beginAtZero: true,
     max: 100,
-    grid: { color: "rgba(148, 163, 184, 0.16)" },
+    grid: { color: chartGridColor() },
     ticks: { callback: (value) => `${value}%` },
   };
   return {

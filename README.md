@@ -43,7 +43,7 @@ StudyFlow 是一个面向中学生的全栈学习工作台：把作业规划、�
 - ✅ SQLite 持久化、演示数据可载入/清除、JSON 导出
 - ✅ 后端 pytest 测试、浏览器自动化联调（桌面 + 390px 移动端）
 - ✅ 已使用本地 `.env` 真实凭据完成 Qwen 视觉（含图片）与 DeepSeek 文本连通性测试；Key 不写入代码、日志或版本库
-- 🎨 Settings 已迁移至 Fluent UI Web Components 3.2.1；本地固定资源、Fluent 2 tokens、Mica/Acrylic、浅/深色主题；其余九个生产页面尚未迁移
+- 🎨 十个生产页面已完成 Fluent 设计系统迁移；Fluent 2 tokens、Mica/Acrylic、全站浅/深色主题、本地固定资源
 
 ---
 
@@ -82,8 +82,9 @@ StudyFlow 是一个面向中学生的全栈学习工作台：把作业规划、�
 
 - 本地地址：`http://127.0.0.1:5000/lab/fluent-lab.html`
 - 集成说明：`docs/FLUENT_UI_INTEGRATION.md`
-- Settings 已完成迁移；其余九个生产页面仍使用原 StudyFlow 设计系统。
-- Settings 迁移说明与前后截图：`docs/SETTINGS_FLUENT_MIGRATION.md`
+- 全部十个生产页面已完成 Fluent 设计系统迁移；Settings 为已验收基准。
+- 全站迁移说明与九页前后截图：`docs/ALL_PAGES_FLUENT_MIGRATION.md`
+- Settings 基准说明：`docs/SETTINGS_FLUENT_MIGRATION.md`
 
 | Fluent Lab · Light | Fluent Lab · Dark |
 | --- | --- |

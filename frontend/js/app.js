@@ -4,6 +4,7 @@ import { applyMeta, mountLayout } from "./components/layout.js";
 import { refreshIcons } from "./components/icons.js";
 import { showToast } from "./components/toast.js";
 import { initRouter } from "./router.js";
+import { initGlobalTheme } from "./theme.js";
 import { loadMeta } from "./services/store.js";
 
 import dashboardPage from "./pages/dashboard.js";
@@ -30,6 +31,7 @@ const pageRoutes = {
   settings: settingsPage,
 };
 
+initGlobalTheme();
 const root = document.getElementById("app");
 const content = mountLayout(root);
 refreshIcons(document);
