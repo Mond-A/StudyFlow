@@ -60,6 +60,13 @@
   --sf-stroke-thin: 1px;
   --sf-stroke-thick: 2px;
 
+  /* Some Fluent components reference the official stroke-width tokens but
+     current token themes do not emit them. Define the Fluent 2 values here. */
+  --strokeWidthThin: 1px;
+  --strokeWidthThick: 2px;
+  --strokeWidthThicker: 3px;
+  --strokeWidthThickest: 4px;
+
   /* Neutral surfaces */
   --sf-color-bg: var(--colorNeutralBackground3, #f5f5f5);
   --sf-color-surface: var(--colorNeutralBackground1, #ffffff);

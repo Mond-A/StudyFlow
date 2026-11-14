@@ -1,6 +1,6 @@
 # Fluent UI Web Components 集成验证
 
-状态：**技术验证通过，生产页面尚未迁移。**
+状态：**技术验证通过；Settings 已迁移，其余九个生产页面尚未迁移。**
 
 这是一个隔离的组件实验室，不是静态原型，也不替代现有 StudyFlow 页面。它用于验证微软 Fluent UI Web Components 在原生 HTML/CSS/JS 项目中的注册、主题、材质、表单事件和响应式行为。
 
@@ -204,21 +204,23 @@ Fluent UI Web Components v3 的命名和设计稿中的旧名称不完全一致�
 
 ## 6. 尚未解决
 
-- **生产页面没有替换为 Fluent**，当前仍是原 StudyFlow Paper & Ink UI；
+- **Settings 已完成迁移；其余九个生产页面仍使用 Paper & Ink UI**；
 - Progress Ring 没有官方实现，当前用 Spinner / Progress Bar 替代；
 - 完整 bundle 含全部 42 个组件，尚未做按组件 tree-shaking；
 - Menu 的 Popover / anchor positioning 需要跨浏览器验证；
 - Fluent tokens 包为 `1.0.0-alpha.24`，升级需要重新跑实验室；
-- 尚未迁移现有页面 CSS，后续必须逐页检查 CSS 冲突；
+- 其余页面迁移时必须逐页检查 CSS 冲突；
 - 实验室不测试 AI、SQLite 或真实表单提交，只验证 UI 组件与事件。
+
+Settings 的迁移细节见 `docs/SETTINGS_FLUENT_MIGRATION.md`。
 
 ---
 
 ## 7. 推荐迁移顺序
 
-1. **确认实验室视觉和组件选择**（当前阶段）。
-2. 将 token 层、主题切换和基础材质应用到生产应用壳，保留现有页面内容。
-3. 先迁移低风险页面：Settings → Focus → Errors。
+1. **确认实验室视觉和组件选择**（已完成）。
+2. 已将 token 层、主题切换和基础材质应用到 Settings，并保留原 API。
+3. 下一批低风险页面：Focus → Errors（等待 Settings 验收）。
 4. 再迁移 Dashboard → Planner → Analytics。
 5. 最后处理 Notes、Flashcards、Reports 等复杂交互页。
 6. 每页迁移后运行真实 API、表单、AI 入口和响应式回归，再移除旧组件样式。
