@@ -1086,3 +1086,31 @@ body:not([data-route="settings"]) .btn-sm {
   background: var(--sf-color-accent-soft) !important;
   color: var(--sf-color-accent-text) !important;
 }
+
+/* Admin logout action in the shared sidebar. */
+.sidebar-logout {
+  width: 100%;
+  margin-top: 3px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--sf-color-text-3);
+  font-family: var(--sf-font-family-base);
+  text-align: left;
+  cursor: pointer;
+}
+
+.sidebar-logout:hover {
+  border-color: color-mix(in srgb, var(--sf-color-danger) 22%, transparent);
+  background: var(--sf-color-danger-soft);
+  color: var(--sf-color-danger);
+}
+
+.sidebar-logout:focus-visible {
+  outline: 2px solid var(--sf-color-focus);
+  outline-offset: 1px;
+}
+
+.sidebar-logout:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}

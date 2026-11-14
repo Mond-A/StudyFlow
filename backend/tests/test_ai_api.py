@@ -5,7 +5,7 @@ from __future__ import annotations
 import io
 
 from backend.services.ai_service import AIService
-from .conftest import assert_ok
+from .conftest import assert_ok, authenticate_client
 
 
 def test_upload_validation_and_serving(client, upload_image):
@@ -211,7 +211,7 @@ def test_note_ai_audit_graph_and_flashcards_demo(client, sample_note, upload_ima
 
 def test_ai_mode_off_returns_explicit_error(app_factory):
     app = app_factory(AI_DEMO_MODE="off")
-    client = app.test_client()
+    client = authenticate_client(app)
     response = client.post("/api/ai/express/polish", json={"text": "Hello world."})
     assert response.status_code == 503
     payload = response.get_json()

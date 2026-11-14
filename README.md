@@ -134,8 +134,11 @@ python -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
 copy .env.example .env
+python scripts/hash_password.py
 python run.py
 ```
+
+启动前必须把生成的 `STUDYFLOW_PASSWORD_HASH` 和随机生成的 `SECRET_KEY` 写入 `.env`；缺少时应用会拒绝启动。
 
 **macOS / Linux**
 
@@ -144,8 +147,11 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
+python scripts/hash_password.py
 python run.py
 ```
+
+启动前必须把生成的 `STUDYFLOW_PASSWORD_HASH` 和随机生成的 `SECRET_KEY` 写入 `.env`；缺少时应用会拒绝启动。
 
 打开 <http://127.0.0.1:5000>。
 
@@ -187,16 +193,28 @@ python scripts/init_db.py --no-seed
 python scripts/init_db.py --reload-demo
 ```
 
-项目默认在第一次启动时载入少量演示数据（`SEED_DEMO=true`）。在 **设置 → 演示数据与导出** 中可一键清除；清除演示数据不会删除用户自己创建的内容。
+生产配置默认 `SEED_DEMO=false`，不会写入演示数据。仅本地开发需要演示数据时可显式设为 `true`；清除演示数据不会删除用户自己创建的内容。初始化前必须已经配置 `.env` 中的认证参数。
 
 ### 3. 访问
 
 | 地址 | 说明 |
 | --- | --- |
-| <http://127.0.0.1:5000> | 应用首页 |
-| <http://127.0.0.1:5000/api/health> | 健康检查 |
-| <http://127.0.0.1:5000/api/meta> | 应用与 AI 配置状态 |
-| <http://127.0.0.1:5000/api/*> | REST API 前缀，见 [docs/API.md](docs/API.md) |
+| <http://127.0.0.1:5000/login> | 管理员登录页（公开） |
+| <http://127.0.0.1:5000> | 应用首页，未登录会跳转登录页 |
+| <http://127.0.0.1:5000/api/health> | 健康检查（需要登录） |
+| <http://127.0.0.1:5000/api/meta> | 应用与 AI 配置状态（需要登录） |
+| <http://127.0.0.1:5000/api/*> | REST API 前缀，除登录/登出外均需要 Session |
+
+## 管理员认证
+
+- 单管理员密码，无注册、无多用户、无角色。
+- 所有页面、`/api/*` 和 `/uploads/*` 默认要求登录；只有登录/登出接口例外。
+- 未登录 API 返回 JSON `401 AUTH_REQUIRED`，不会返回 HTML 登录页。
+- Session Cookie 使用 HttpOnly、SameSite=Lax；HTTPS 部署后可设置 `SESSION_COOKIE_SECURE=true`。
+- 登录失败默认 5 次/15 分钟限流；Session 默认 12 小时过期。
+- 侧栏底部有“退出登录”按钮。
+- 密码哈希通过 `python scripts/hash_password.py` 生成，明文不落盘。
+- 生产部署：见 [Debian ARM64 部署说明](docs/DEPLOY_DEBIAN_ARM64.md)。
 
 本地数据默认位于：
 
@@ -215,12 +233,19 @@ data/uploads/
 | --- | --- | --- |
 | `HOST` | `127.0.0.1` | Flask 监听地址 |
 | `PORT` | `5000` | Flask 端口 |
-| `FLASK_ENV` | `development` | `development` 会开启 Flask debug/reloader；部署时不要暴露 debug |
-| `SECRET_KEY` | 开发占位值 | 生产部署前必须改成随机字符串 |
+| `FLASK_ENV` | `production` | 不要用 development/debug 对外提供服务 |
+| `SECRET_KEY` | 无默认值 | **必填**；至少 32 位随机值 |
+| `STUDYFLOW_PASSWORD_HASH` | 无默认值 | **必填**；`scripts/hash_password.py` 生成 |
+| `SESSION_COOKIE_SAMESITE` | `Lax` | `Lax` / `Strict` / `None` |
+| `SESSION_COOKIE_SECURE` | `false` | HTTPS 部署后设为 `true` |
+| `SESSION_LIFETIME_HOURS` | `12` | 登录会话最长有效时间 |
+| `LOGIN_MAX_ATTEMPTS` | `5` | 登录失败次数上限 |
+| `LOGIN_WINDOW_SECONDS` | `900` | 登录失败滑动窗口 |
+| `TRUST_PROXY` | `false` | 仅在可信反向代理后设为 `true` |
 | `TIMEZONE` | `Asia/Shanghai` | 日期、今日统计使用 |
 | `DATABASE_PATH` | `data/studyflow.db` | 相对项目根目录 |
 | `UPLOAD_DIR` | `data/uploads` | 上传目录 |
-| `SEED_DEMO` | `true` | 首次初始化是否写入演示数据 |
+| `SEED_DEMO` | `false` | 首次初始化是否写入演示数据 |
 | `CORS_ORIGINS` | 空 | 需要跨域时填写允许的前端源，逗号分隔 |
 | `AI_DEMO_MODE` | `auto` | `auto` / `on` / `off`，见下文 |
 | `AI_TIMEOUT` | `60` | 请求 AI 的超时秒数 |
@@ -368,7 +393,7 @@ studyflow/
 ├── data/                      # SQLite 与上传文件（运行时创建）
 ├── docs/
 │   ├── API.md
-│   ├── UI_DESIGN_SYSTEM.md    # Paper & Ink 设计系统、响应式与页面构图
+│   ├── UI_DESIGN_SYSTEM.md    # Fluent 设计系统、响应式与页面构图
 │   └── screenshots/
 ├── scripts/
 │   ├── init_db.py
@@ -406,7 +431,7 @@ SQLite，所有时间字段文本化存储 ISO 时间，业务日期为 `YYYY-MM
 
 - 每张业务表都有 `user_id` 外键与级联删除，当前单用户 ID 固定为 `1`，但结构可以直接扩展多用户。
 - 建立了任务状态/截止日期/计划日期、成绩日期/学科、学习记录日期、闪卡下次复习等索引。
-- 当前没有认证系统；部署到公网前必须添加认证、鉴权和 CSRF 保护。
+- 认证由 Flask Session 单管理员登录保护；所有生产页面、API 和上传文件默认需要登录。数据库仍是单用户 `user_id=1`，不提供注册、多用户或独立数据空间。
 
 ---
 
@@ -420,6 +445,7 @@ python -m pytest
 
 测试覆盖：
 
+- 管理员登录/登出、未登录页面跳转、未登录 API JSON 401、Session 过期、登录限流、CSRF 来源校验、Cookie 标志
 - health/meta/settings/静态页面托管/统一错误结构
 - 任务 CRUD、完成/重开、规划预览与应用
 - 成绩 CRUD、得分率、筛选、图表数据
@@ -467,14 +493,14 @@ python scripts/test_ai_connection.py --capability all
 
 ## 已知限制与未实测项
 
-1. **单用户、无登录**。所有 API 默认访问默认用户，适合本地个人使用与后续扩展，不适合直接公网部署。
+1. **单管理员登录**。所有页面/API/上传文件需要 Session；没有注册、多用户或独立数据空间。登录限流是进程内计数，2 个 Gunicorn worker 各自计数。
 2. **真实模型的可用性与网络环境相关**。本次账号/网络下 Qwen `qwen3.8-flash`（含图片）和 DeepSeek 文本均实测通过；DeepSeek 响应模型名为 `deepseek-flash`（请求配置仍保留 `deepseek-chat` 别名）。换账号、换模型或换网络后应以 `scripts/test_ai_connection.py` 重新验证，供应商拒绝时会明确返回 `AI_REQUEST_REJECTED` 或 `AI_AUTH_ERROR`。
 3. **演示模式不执行真实 OCR**。图片识别只返回明显标记的示例结构，不会假装已识别图片内容。
 4. **无后台任务队列**。AI 请求是同步的，受浏览器 fetch 90 秒和模型自身超时限制；大型视觉请求可能较慢。
 5. **番茄钟不跨页面持续计时**。离开 Focus 页面会停止当前计时，建议完成一轮后离开或使用手动补录。
 6. **知识图谱与笔记 PDF 等高级能力未做**。当前支持 Markdown 图片识别、检查、KaTeX 与 Cytoscape 交互图。
-7. **UI 已完成 Paper & Ink 设计系统精修**，覆盖 10 个页面与 1440/1024/768/390 四档视口；深色主题尚未启用，但颜色、字号、圆角和控件已改为可从语义 token 扩展的结构，详见 [UI 设计系统](docs/UI_DESIGN_SYSTEM.md)。
-8. **无自动备份计划**。可在设置页导出 JSON；SQLite 文件也可直接备份。
+7. **UI 已迁移到 Fluent 设计系统**，覆盖 10 个页面与多档响应式视口，支持浅/深色主题；详见 [全站 Fluent 迁移](docs/ALL_PAGES_FLUENT_MIGRATION.md)。
+8. **未安装自动备份 cron**。提供 `scripts/backup_db.sh` 做 SQLite + uploads 在线备份，部署后建议自行配置定时任务；设置页 JSON 导出仍可用。
 
 ---
 

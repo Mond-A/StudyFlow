@@ -79,6 +79,10 @@ export function mountLayout(root) {
             </span>
             ${icon("chevron-right", "sidebar-user-arrow")}
           </a>
+          <button class="nav-item sidebar-logout" id="logout-button" type="button">
+            <span class="nav-icon">${icon("log-out")}</span>
+            <span>退出登录</span>
+          </button>
           <p class="sidebar-version"><span class="js-app-version">StudyFlow</span> · 本地版</p>
         </div>
       </aside>
@@ -116,6 +120,24 @@ function bindShell(root) {
   const backdrop = root.querySelector("#sidebar-backdrop");
   const toggle = root.querySelector("#sidebar-toggle");
   const closeButton = root.querySelector("#sidebar-close");
+  const logoutButton = root.querySelector("#logout-button");
+
+  logoutButton?.addEventListener("click", async () => {
+    if (logoutButton.disabled) return;
+    logoutButton.disabled = true;
+    try {
+      await fetch("/api/auth/logout", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json", "Accept": "application/json" },
+      });
+    } catch (_) {
+      // Navigate to the public page even if the network request failed; the
+      // server-side session guard remains authoritative.
+    } finally {
+      window.location.assign("/login");
+    }
+  });
 
   const syncSidebarAccessibility = (open) => {
     const mobileNavigation = window.matchMedia("(max-width: 1180px)").matches;

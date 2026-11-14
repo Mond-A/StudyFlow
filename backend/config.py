@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from datetime import timedelta
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -36,7 +37,24 @@ def _resolve_path(raw: str, default: str) -> Path:
 class Config:
     APP_NAME = "StudyFlow"
     APP_VERSION = "0.7.0-mvp"
-    SECRET_KEY = os.getenv("SECRET_KEY", "studyflow-dev-secret-change-me")
+
+    # Authentication is mandatory. These deliberately have no usable default:
+    # create_app() fails with a clear error until both are supplied.
+    SECRET_KEY = os.getenv("SECRET_KEY", "").strip()
+    STUDYFLOW_PASSWORD_HASH = os.getenv("STUDYFLOW_PASSWORD_HASH", "").strip()
+
+    SESSION_COOKIE_NAME = "studyflow_session"
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = os.getenv("SESSION_COOKIE_SAMESITE", "Lax").strip() or "Lax"
+    SESSION_COOKIE_SECURE = _env_bool("SESSION_COOKIE_SECURE", False)
+    PERMANENT_SESSION_LIFETIME = timedelta(
+        hours=max(1, min(_env_int("SESSION_LIFETIME_HOURS", 12), 168))
+    )
+    SESSION_REFRESH_EACH_REQUEST = True
+
+    LOGIN_MAX_ATTEMPTS = max(1, min(_env_int("LOGIN_MAX_ATTEMPTS", 5), 20))
+    LOGIN_WINDOW_SECONDS = max(60, min(_env_int("LOGIN_WINDOW_SECONDS", 900), 86400))
+    TRUST_PROXY = _env_bool("TRUST_PROXY", False)
 
     FRONTEND_DIR = PROJECT_ROOT / "frontend"
     DATABASE_PATH = _resolve_path(os.getenv("DATABASE_PATH", ""), "data/studyflow.db")

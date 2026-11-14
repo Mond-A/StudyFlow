@@ -4,7 +4,33 @@
 API 前缀：`/api`  
 默认服务地址：`http://127.0.0.1:5000`
 
-StudyFlow MVP 是单用户本地应用。API 没有登录鉴权，默认所有业务数据归属于 `users.id = 1`（`username = student`）。**不要在没有反向代理鉴权的情况下直接暴露到公网。**
+StudyFlow 是单管理员应用；业务数据归属于 `users.id = 1`（`username = student`）。除登录/登出外，所有 `/api/*`、页面和 `/uploads/*` 都需要管理员 Session。未登录 API 返回 HTTP `401` JSON（`AUTH_REQUIRED`），不会返回 HTML 登录页。
+
+## 0. 认证
+
+### `POST /api/auth/login`
+
+请求：
+
+```json
+{"password": "管理员密码", "next": "/"}
+```
+
+成功响应会设置 `studyflow_session` Cookie（HttpOnly、SameSite=Lax，HTTPS 下可配置 Secure）：
+
+```json
+{"ok": true, "data": {"redirect": "/"}, "message": "登录成功"}
+```
+
+- 错误密码：HTTP `401`，`INVALID_CREDENTIALS`
+- 频率限制：HTTP `429`，`LOGIN_RATE_LIMITED`，带 `Retry-After`
+- 缺少密码：HTTP `400`
+
+### `POST /api/auth/logout`
+
+清除 Session，返回 `{"ok": true, "data": {"redirect": "/login"}}`。
+
+登录页面是公开的 `/login`；登录成功后才可访问 SPA 和业务 API。认证相关的环境变量见 [部署说明](DEPLOY_DEBIAN_ARM64.md)。
 
 ---
 

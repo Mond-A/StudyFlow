@@ -1,0 +1,32 @@
+[Unit]
+Description=StudyFlow - single-admin learning workspace
+Documentation=file:/opt/studyflow/docs/DEPLOY_DEBIAN_ARM64.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=studyflow
+Group=studyflow
+WorkingDirectory=/opt/studyflow
+EnvironmentFile=/opt/studyflow/.env
+Environment=PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
+ExecStart=/opt/studyflow/.venv/bin/gunicorn --config /opt/studyflow/deploy/gunicorn.conf.py wsgi:app
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+KillSignal=SIGTERM
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+LockPersonality=true
+RestrictSUIDSGID=true
+ReadWritePaths=/opt/studyflow/data /opt/studyflow/logs
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

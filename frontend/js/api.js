@@ -79,6 +79,14 @@ export async function request(
       signal: controller.signal,
       credentials: "same-origin",
     });
+    if (response.status === 401 && !window.location.pathname.startsWith("/login")) {
+      const next = `${window.location.pathname}${window.location.hash || ""}`;
+      window.location.assign(`/login?next=${encodeURIComponent(next)}`);
+      throw new ApiError("登录状态已失效，正在跳转到登录页。", {
+        code: "AUTH_REQUIRED",
+        status: 401,
+      });
+    }
     const text = await response.text();
     let parsed = null;
     if (text) {

@@ -3,12 +3,28 @@
 from __future__ import annotations
 
 import io
+import time
 from pathlib import Path
 
 import pytest
 from PIL import Image
+from werkzeug.security import generate_password_hash
 
 from backend.app import create_app
+
+TEST_PASSWORD = "test-admin-password-2026"
+TEST_PASSWORD_HASH = generate_password_hash(TEST_PASSWORD, method="scrypt")
+
+
+def authenticate_client(app):
+    """Create a test client with a valid session without hitting the login API."""
+    client = app.test_client()
+    with client.session_transaction() as sess:
+        sess["authenticated"] = True
+        sess["auth_at"] = int(time.time())
+        sess["auth_nonce"] = "test-session"
+        sess.permanent = True
+    return client
 
 
 @pytest.fixture()
@@ -21,7 +37,8 @@ def app_factory(tmp_path):
         uploads = tmp_path / f"uploads-{counter['value']}"
         config = {
             "TESTING": True,
-            "SECRET_KEY": "test-secret",
+            "SECRET_KEY": "test-secret-key-with-enough-entropy-for-session-cookies",
+            "STUDYFLOW_PASSWORD_HASH": TEST_PASSWORD_HASH,
             "DATABASE_PATH": str(database),
             "UPLOAD_DIR": str(uploads),
             "SEED_DEMO": False,
@@ -43,7 +60,17 @@ def app(app_factory):
 
 @pytest.fixture()
 def client(app):
+    return authenticate_client(app)
+
+
+@pytest.fixture()
+def anonymous_client(app):
     return app.test_client()
+
+
+@pytest.fixture()
+def auth_password():
+    return TEST_PASSWORD
 
 
 @pytest.fixture()

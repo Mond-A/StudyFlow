@@ -12,7 +12,9 @@ from pathlib import Path
 
 from flask import Flask, abort, current_app, send_from_directory
 from flask_cors import CORS
+from werkzeug.middleware.proxy_fix import ProxyFix
 
+from .auth import init_auth
 from .config import Config
 from .db import close_db, init_schema, query_one
 from .routes.ai import bp as ai_bp
@@ -71,6 +73,12 @@ def create_app(test_config: dict | None = None) -> Flask:
     app.config["MAX_CONTENT_LENGTH"] = int(app.config["MAX_CONTENT_LENGTH"])
 
     _configure_logging(app)
+    if app.config.get("TRUST_PROXY"):
+        # Only trust one reverse-proxy hop. Keep TRUST_PROXY=false when Flask
+        # is reached directly from the LAN.
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+    init_auth(app)
+
     db_path = Path(app.config["DATABASE_PATH"])
     if str(db_path) != ":memory:":
         db_path.parent.mkdir(parents=True, exist_ok=True)
