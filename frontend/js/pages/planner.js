@@ -184,7 +184,6 @@ function renderPage(container) {
     <div class="page-shell">
       <header class="page-header">
         <div class="page-heading">
-          <p class="eyebrow">PLANNER · 学习规划</p>
           <h1>把任务变成可执行的计划</h1>
           <p class="page-subtitle">记录作业、估算耗时，再用 AI 辅助识别与本地透明规则排期。你的修改始终优先。</p>
         </div>

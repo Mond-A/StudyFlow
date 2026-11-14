@@ -90,7 +90,6 @@ function renderDashboard(container, data) {
     <div class="page-shell">
       <header class="page-header">
         <div class="page-heading">
-          <p class="eyebrow">DASHBOARD · 学习总览</p>
           <h1>${escapeHTML(data.greeting)}，${escapeHTML(userName)}</h1>
           <p class="page-subtitle">${escapeHTML(data.date_label)} · ${escapeHTML(
             data.weekday_label

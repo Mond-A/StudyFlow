@@ -1,21 +1,21 @@
 /** Chart.js setup shared by the analytics dashboard. */
 
 const CHART_FONT =
-  '"Inter", "Segoe UI", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif';
+  '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif';
 
 let defaultsApplied = false;
 
 export const CHART_COLORS = [
   "#2563eb",
-  "#0d9488",
-  "#d97706",
-  "#7c3aed",
-  "#db2777",
-  "#0891b2",
-  "#65a30d",
-  "#ea580c",
+  "#0f766e",
+  "#a16207",
+  "#6d4bd8",
+  "#be185d",
+  "#0e7490",
+  "#4d7c0f",
+  "#c2410c",
   "#4f46e5",
-  "#475569",
+  "#5d6775",
 ];
 
 export function chartsAvailable() {
@@ -25,11 +25,12 @@ export function chartsAvailable() {
 export function configureCharts() {
   if (!chartsAvailable() || defaultsApplied) return;
   const Chart = window.Chart;
+  const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
   Chart.defaults.font.family = CHART_FONT;
   Chart.defaults.font.size = 12;
-  Chart.defaults.color = "#64748b";
-  Chart.defaults.borderColor = "rgba(148, 163, 184, 0.2)";
-  Chart.defaults.animation.duration = 450;
+  Chart.defaults.color = "#5d6775";
+  Chart.defaults.borderColor = "rgba(104, 116, 131, 0.18)";
+  Chart.defaults.animation = reduceMotion ? false : { duration: 320, easing: "easeOutQuart" };
   Chart.defaults.plugins.legend.labels.usePointStyle = true;
   Chart.defaults.plugins.legend.labels.boxWidth = 8;
   Chart.defaults.plugins.legend.labels.padding = 16;
@@ -48,7 +49,11 @@ export function createChart(canvas, config) {
   if (!canvas || !chartsAvailable()) return null;
   const existing = window.Chart.getChart(canvas);
   if (existing) existing.destroy();
-  return new window.Chart(canvas, config);
+  const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  const resolved = reduceMotion
+    ? { ...config, options: { ...(config.options || {}), animation: false } }
+    : config;
+  return new window.Chart(canvas, resolved);
 }
 
 export function destroyCharts(charts) {

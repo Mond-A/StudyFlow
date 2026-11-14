@@ -1,4 +1,4 @@
-/* ── Notes workspace ─────────────────────────────────────────────── */
+/* 鈹€鈹€ Notes workspace 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€ */
 .notes-mode-bar {
   display: flex;
   align-items: center;
@@ -19,7 +19,7 @@
   flex-wrap: wrap;
   gap: 7px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .notes-count {
@@ -27,7 +27,7 @@
   align-items: center;
   gap: 4px;
   color: var(--muted-light);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .notes-count .icon {
@@ -65,7 +65,7 @@
 }
 
 .notes-sidebar-head .card-subtitle {
-  font-size: 9.5px;
+  font-size: 12px;
 }
 
 .notes-filter {
@@ -84,7 +84,7 @@
   padding: 6px 0 2px;
   margin-right: -4px;
   scrollbar-width: thin;
-  scrollbar-color: #cbd5e1 transparent;
+  scrollbar-color: var(--line-strong) transparent;
 }
 
 .note-list .empty-state {
@@ -124,7 +124,7 @@
 .note-list-top > strong {
   flex: 1;
   min-width: 0;
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 600;
   line-height: 1.45;
   color: var(--ink-soft);
@@ -145,7 +145,7 @@
 .note-list-item > p {
   margin-top: 3px;
   color: var(--muted-light);
-  font-size: 9.5px;
+  font-size: 12px;
   line-height: 1.55;
   overflow: hidden;
   display: -webkit-box;
@@ -160,7 +160,7 @@
   gap: 7px;
   margin-top: 5px;
   color: var(--muted-light);
-  font-size: 8.5px;
+  font-size: 12px;
 }
 
 .note-list-meta > span {
@@ -179,7 +179,7 @@
   border-radius: 4px;
   background: rgba(255, 255, 255, 0.6);
   border: 1px solid var(--line);
-  font-size: 8px;
+  font-size: 12px;
   color: var(--muted);
 }
 
@@ -218,7 +218,7 @@
 
 .note-field-label {
   color: var(--muted-light);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.03em;
 }
@@ -257,7 +257,7 @@
   align-items: center;
   gap: 5px;
   color: var(--muted-light);
-  font-size: 9.5px;
+  font-size: 12px;
   white-space: nowrap;
 }
 
@@ -298,7 +298,7 @@
   gap: 7px 14px;
   padding: 0 20px 12px;
   color: var(--muted-light);
-  font-size: 9.5px;
+  font-size: 12px;
 }
 
 .note-document-meta > span {
@@ -313,14 +313,14 @@
 }
 
 .note-document-meta .inline-field {
-  font-size: 9.5px;
+  font-size: 12px;
 }
 
 .note-document-meta .inline-input {
   height: 26px;
   min-height: 26px;
   padding: 3px 7px;
-  font-size: 10px;
+  font-size: 12px;
   background: var(--surface-muted);
 }
 
@@ -329,7 +329,7 @@
   align-items: center;
   gap: 3px;
   color: var(--muted);
-  font-size: 9.5px;
+  font-size: 12px;
 }
 
 .source-image-link:hover {
@@ -369,7 +369,7 @@
   border-radius: 7px;
   background: transparent;
   color: var(--muted);
-  font-size: 10.5px;
+  font-size: 12px;
   font-weight: 500;
   white-space: nowrap;
 }
@@ -406,7 +406,7 @@
 }
 
 .note-toolbar-actions .btn {
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .note-panes {
@@ -434,7 +434,7 @@
   padding: 9px 20px;
   border-top: 1px solid var(--line);
   color: var(--muted-light);
-  font-size: 9px;
+  font-size: 12px;
   background: #fff;
 }
 
@@ -510,7 +510,7 @@
 
 .toastui-editor-md-container .CodeMirror {
   font-family: var(--font-mono) !important;
-  font-size: 12.5px !important;
+  font-size: 13px !important;
   line-height: 1.7 !important;
   color: var(--ink-soft) !important;
 }
@@ -530,7 +530,7 @@
   border: 1px solid var(--line);
   border-radius: 9px;
   font-family: var(--font-mono);
-  font-size: 12.5px;
+  font-size: 13px;
   line-height: 1.7;
   resize: vertical;
 }
@@ -545,7 +545,7 @@
   border-bottom: 1px solid var(--line);
   background: #fff;
   color: var(--muted);
-  font-size: 9.5px;
+  font-size: 12px;
 }
 
 .preview-toolbar > span:first-child {
@@ -572,7 +572,7 @@
   justify-content: center;
 }
 
-/* ── Knowledge graph ──────────────────────────────────────────────── */
+/* 鈹€鈹€ Knowledge graph 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€ */
 .graph-pane {
   min-height: 520px;
   padding: 14px;
@@ -613,7 +613,7 @@
   align-items: center;
   gap: 3px;
   color: var(--muted);
-  font-size: 8.5px;
+  font-size: 12px;
   white-space: nowrap;
 }
 
@@ -621,26 +621,26 @@
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: #64748b;
+  background: var(--muted);
 }
 
-.graph-legend-dot.type-概念 {
+.graph-legend-dot.type-姒傚康 {
   background: #2563eb;
 }
 
-.graph-legend-dot.type-公式 {
-  background: #0d9488;
+.graph-legend-dot.type-鍏紡 {
+  background: var(--teal);
 }
 
-.graph-legend-dot.type-定理 {
+.graph-legend-dot.type-瀹氱悊 {
   background: #7c3aed;
 }
 
-.graph-legend-dot.type-方法 {
-  background: #d97706;
+.graph-legend-dot.type-鏂规硶 {
+  background: var(--amber);
 }
 
-.graph-legend-dot.type-应用 {
+.graph-legend-dot.type-搴旂敤 {
   background: #db2777;
 }
 
@@ -675,7 +675,7 @@
   padding: 6px 9px;
   border-top: 1px solid var(--line);
   color: var(--muted-light);
-  font-size: 8.5px;
+  font-size: 12px;
 }
 
 .graph-hint .icon {
@@ -710,28 +710,28 @@
   align-self: flex-start;
   padding: 2px 7px;
   border-radius: 4px;
-  font-size: 8.5px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--primary);
   background: var(--primary-soft);
 }
 
-.node-type-公式 {
+.node-type-鍏紡 {
   color: var(--teal);
   background: var(--teal-soft);
 }
 
-.node-type-定理 {
+.node-type-瀹氱悊 {
   color: var(--violet);
   background: var(--violet-soft);
 }
 
-.node-type-方法 {
+.node-type-鏂规硶 {
   color: var(--amber);
   background: var(--amber-soft);
 }
 
-.node-type-应用 {
+.node-type-搴旂敤 {
   color: #be185d;
   background: #fdf2f8;
 }
@@ -743,7 +743,7 @@
 
 .graph-detail-inner > p {
   color: var(--muted);
-  font-size: 10.5px;
+  font-size: 12px;
   line-height: 1.7;
 }
 
@@ -754,7 +754,7 @@
 }
 
 .node-relations h4 {
-  font-size: 9.5px;
+  font-size: 12px;
   color: var(--muted);
   margin-bottom: 5px;
 }
@@ -773,7 +773,7 @@
   align-items: flex-start;
   gap: 5px;
   color: var(--ink-soft);
-  font-size: 9.5px;
+  font-size: 12px;
   line-height: 1.5;
 }
 
@@ -783,13 +783,13 @@
   border-radius: 3px;
   background: var(--surface-muted);
   color: var(--muted-light);
-  font-size: 8px;
+  font-size: 12px;
 }
 
 .graph-detail-hint {
   margin-top: 4px;
   color: var(--muted-light);
-  font-size: 8.5px;
+  font-size: 12px;
 }
 
 .graph-meta {
@@ -802,7 +802,7 @@
 
 .graph-meta > p {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.65;
 }
 
@@ -836,7 +836,7 @@
   gap: 4px;
   max-width: 460px;
   color: var(--muted-light);
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.6;
   text-align: center;
 }
@@ -871,10 +871,10 @@
 
 .graph-loading p {
   color: var(--muted-light);
-  font-size: 10px;
+  font-size: 12px;
 }
 
-/* ── Audit modal ─────────────────────────────────────────────────── */
+/* 鈹€鈹€ Audit modal 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€ */
 .audit-summary {
   display: flex;
   align-items: flex-start;
@@ -899,13 +899,13 @@
 }
 
 .audit-summary h3 {
-  font-size: 11.5px;
+  font-size: 12px;
   margin-bottom: 3px;
 }
 
 .audit-summary p {
   color: var(--muted);
-  font-size: 10.5px;
+  font-size: 12px;
   line-height: 1.65;
 }
 
@@ -916,7 +916,7 @@
   gap: 4px;
   padding: 8px 0;
   color: var(--muted-light);
-  font-size: 9.5px;
+  font-size: 12px;
   line-height: 1.6;
 }
 
@@ -954,7 +954,7 @@
 .audit-suggestion > span {
   flex: 0 0 28px;
   color: var(--muted-light);
-  font-size: 8.5px;
+  font-size: 12px;
   font-weight: 600;
   padding-top: 1px;
 }
@@ -962,7 +962,7 @@
 .audit-original p,
 .audit-suggestion p {
   color: var(--ink-soft);
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.65;
   word-break: break-word;
 }
@@ -974,7 +974,7 @@
 .audit-reason {
   margin-top: 5px;
   color: var(--muted);
-  font-size: 9.5px;
+  font-size: 12px;
   line-height: 1.6;
 }
 
@@ -990,13 +990,13 @@
 }
 
 .audit-clean strong {
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .audit-clean p {
   margin-top: 2px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.65;
 }
 
@@ -1007,14 +1007,14 @@
   margin-top: 1px;
 }
 
-/* ── Note recognition modal ──────────────────────────────────────── */
+/* 鈹€鈹€ Note recognition modal 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€ */
 .note-recognition-result .form-stack {
   margin-top: 13px;
 }
 
 .note-recognized-markdown {
   font-family: var(--font-mono);
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1.65;
   min-height: 260px;
 }
@@ -1027,7 +1027,7 @@
   margin-top: 11px;
 }
 
-/* ── Responsive notes ────────────────────────────────────────────── */
+/* 鈹€鈹€ Responsive notes 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€ */
 @media (max-width: 1280px) {
   .notes-layout {
     grid-template-columns: 270px minmax(0, 1fr);
@@ -1146,7 +1146,7 @@
 
   .note-tab {
     padding: 5px 6px;
-    font-size: 9.5px;
+    font-size: 12px;
   }
 
   .note-tab .icon {
@@ -1155,7 +1155,7 @@
   }
 
   .note-head-actions .btn {
-    font-size: 10px;
+    font-size: 12px;
   }
 
   .note-title-input {

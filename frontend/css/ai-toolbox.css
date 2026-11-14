@@ -26,7 +26,7 @@
   flex-wrap: wrap;
   gap: 7px;
   color: var(--muted-light);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .toolbox-layout {
@@ -100,14 +100,14 @@
 }
 
 .toolbox-nav-item strong {
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 600;
 }
 
 .toolbox-nav-item small {
   margin-top: 2px;
   color: var(--muted-light);
-  font-size: 9px;
+  font-size: 12px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -142,7 +142,7 @@
   align-items: center;
   gap: 4px;
   color: var(--muted-light);
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .toolbox-nav-footer > span .icon {
@@ -151,7 +151,7 @@
 }
 
 .toolbox-nav-footer .text-link {
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .toolbox-main {
@@ -211,7 +211,7 @@
 .tool-panel-header p {
   margin-top: 4px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.65;
 }
 
@@ -266,7 +266,7 @@
 .tool-placeholder p {
   margin-top: 2px;
   color: var(--muted-light);
-  font-size: 10.5px;
+  font-size: 12px;
   line-height: 1.6;
 }
 
@@ -293,7 +293,7 @@
 
 .tool-loading p {
   color: var(--muted-light);
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.6;
 }
 
@@ -371,7 +371,7 @@
 .score-orb span {
   margin-top: 3px;
   color: var(--muted-light);
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .essay-score-copy {
@@ -385,7 +385,7 @@
   border-radius: 5px;
   background: var(--primary-soft);
   color: var(--primary);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 600;
 }
 
@@ -399,7 +399,7 @@
 .grading-score-copy p {
   margin-top: 4px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.7;
 }
 
@@ -407,7 +407,7 @@
 .grading-score-copy .muted-note {
   margin-top: 6px;
   display: block;
-  font-size: 9.5px;
+  font-size: 12px;
 }
 
 .result-details {
@@ -424,7 +424,7 @@
   padding: 9px 11px;
   cursor: pointer;
   color: var(--muted);
-  font-size: 10.5px;
+  font-size: 12px;
   font-weight: 500;
 }
 
@@ -435,7 +435,7 @@
 
 .result-details .pre-wrap-text {
   padding: 0 12px 12px;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .essay-section {
@@ -479,7 +479,7 @@
   gap: 5px;
   margin-bottom: 6px;
   color: var(--muted);
-  font-size: 9.5px;
+  font-size: 12px;
   font-weight: 600;
 }
 
@@ -527,7 +527,7 @@
   align-items: flex-start;
   flex-wrap: wrap;
   gap: 6px;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.55;
 }
 
@@ -549,7 +549,7 @@
 
 .correction-arrow {
   color: var(--muted-light);
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.7;
 }
 
@@ -562,7 +562,7 @@
 .grammar-issue > p {
   margin-top: 5px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.65;
 }
 
@@ -582,7 +582,7 @@
   margin: 0;
   padding-left: 19px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.75;
 }
 
@@ -636,7 +636,7 @@
   background: var(--surface);
   border: 1px solid var(--line);
   color: var(--ink-soft);
-  font-size: 9.5px;
+  font-size: 12px;
   font-weight: 600;
 }
 
@@ -658,7 +658,7 @@
   padding-top: 8px;
   border-top: 1px solid var(--line);
   color: var(--muted-light);
-  font-size: 9.5px;
+  font-size: 12px;
   line-height: 1.6;
 }
 
@@ -669,7 +669,7 @@
   border-radius: 9px;
   background: var(--surface-muted);
   color: var(--ink-soft);
-  font-size: 12.5px;
+  font-size: 13px;
   line-height: 1.7;
   font-style: italic;
 }
@@ -712,12 +712,12 @@
 
 .component-cell span {
   color: var(--muted-light);
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .component-cell strong {
   color: var(--ink-soft);
-  font-size: 10.5px;
+  font-size: 12px;
   font-weight: 500;
   line-height: 1.55;
   word-break: break-word;
@@ -747,7 +747,7 @@
   border-radius: 50%;
   background: var(--primary-soft);
   color: var(--primary);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 700;
 }
 
@@ -762,14 +762,14 @@
   border-radius: 4px;
   background: var(--surface-muted);
   color: var(--muted);
-  font-size: 8.5px;
+  font-size: 12px;
   font-weight: 600;
 }
 
 .clause-row p {
   margin-top: 4px;
   color: var(--ink-soft);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.6;
 }
 
@@ -777,7 +777,7 @@
   display: block;
   margin-top: 2px;
   color: var(--muted-light);
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.5;
 }
 
@@ -792,14 +792,14 @@
 .translation-box span {
   display: block;
   color: var(--muted-light);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 600;
   margin-bottom: 3px;
 }
 
 .translation-box p {
   color: var(--ink-soft);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.65;
 }
 
@@ -837,12 +837,12 @@
 }
 
 .grammar-summary strong {
-  font-size: 11.5px;
+  font-size: 12px;
 }
 
 .grammar-summary p {
   margin-top: 2px;
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.65;
   color: var(--muted);
 }
@@ -872,7 +872,7 @@
   display: block;
   margin-bottom: 4px;
   color: var(--muted-light);
-  font-size: 8.5px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -884,7 +884,7 @@
 
 .grammar-compare p {
   color: var(--ink-soft);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.65;
 }
 
@@ -914,7 +914,7 @@
 .question-set-header p {
   margin-top: 3px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .question-set-header .eyebrow {
@@ -958,13 +958,13 @@
   border-radius: 6px;
   background: var(--primary);
   color: #fff;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 700;
 }
 
 .question-type {
   color: var(--muted-light);
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .question-body {
@@ -989,7 +989,7 @@
   border-radius: 5px;
   background: var(--surface-muted);
   color: var(--ink-soft);
-  font-size: 10.5px;
+  font-size: 12px;
   line-height: 1.6;
 }
 
@@ -1004,7 +1004,7 @@
   gap: 5px;
   padding-top: 9px;
   color: var(--muted);
-  font-size: 9.5px;
+  font-size: 12px;
   cursor: pointer;
   list-style: none;
 }
@@ -1035,13 +1035,13 @@
 .answer-line > span {
   flex: 0 0 30px;
   color: var(--muted-light);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 600;
 }
 
 .answer-rich {
   color: var(--ink-soft);
-  font-size: 10.5px;
+  font-size: 12px;
   line-height: 1.65;
   min-width: 0;
 }
@@ -1094,7 +1094,7 @@
   align-items: center;
   gap: 5px;
   margin-bottom: 7px;
-  font-size: 10.5px;
+  font-size: 12px;
 }
 
 .points-card h4 .icon {
@@ -1120,7 +1120,7 @@
 }
 
 .points-card li strong {
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--ink-soft);
   line-height: 1.55;
@@ -1129,7 +1129,7 @@
 .points-card li p {
   margin-top: 2px;
   color: var(--muted);
-  font-size: 9.5px;
+  font-size: 12px;
   line-height: 1.6;
 }
 
@@ -1249,6 +1249,6 @@
   }
 
   .toolbox-nav-item > span:nth-child(2) strong {
-    font-size: 10.5px;
+    font-size: 12px;
   }
 }

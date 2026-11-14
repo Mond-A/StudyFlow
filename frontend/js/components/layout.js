@@ -79,7 +79,7 @@ export function mountLayout(root) {
             </span>
             ${icon("chevron-right", "sidebar-user-arrow")}
           </a>
-          <p class="sidebar-version"><span class="js-app-version">StudyFlow</span> · MVP</p>
+          <p class="sidebar-version"><span class="js-app-version">StudyFlow</span> · 本地版</p>
         </div>
       </aside>
 
@@ -117,11 +117,24 @@ function bindShell(root) {
   const toggle = root.querySelector("#sidebar-toggle");
   const closeButton = root.querySelector("#sidebar-close");
 
+  const syncSidebarAccessibility = (open) => {
+    const mobileNavigation = window.matchMedia("(max-width: 1180px)").matches;
+    if (mobileNavigation) {
+      sidebar.setAttribute("aria-hidden", String(!open));
+      sidebar.inert = !open;
+    } else {
+      sidebar.removeAttribute("aria-hidden");
+      sidebar.inert = false;
+    }
+    backdrop.setAttribute("aria-hidden", String(!open));
+  };
+
   const setOpen = (open) => {
     document.body.classList.toggle("sidebar-open", open);
     sidebar.classList.toggle("is-open", open);
     backdrop.classList.toggle("is-open", open);
     toggle.setAttribute("aria-expanded", String(open));
+    syncSidebarAccessibility(open);
   };
 
   toggle.addEventListener("click", () => setOpen(true));
@@ -136,8 +149,10 @@ function bindShell(root) {
     }
   });
   window.addEventListener("resize", () => {
-    if (window.innerWidth >= 1024) setOpen(false);
+    if (window.innerWidth > 1180) setOpen(false);
+    else syncSidebarAccessibility(document.body.classList.contains("sidebar-open"));
   });
+  syncSidebarAccessibility(false);
 }
 
 export function setActiveNav(routeName) {
@@ -183,8 +198,13 @@ export function applyMeta(meta) {
     label = "AI 演示模式";
     detail = "结果仅供体验";
   } else {
+    const providerName = (provider) =>
+      ({ deepseek: "DeepSeek", qwen: "Qwen" })[String(provider || "").toLowerCase()] || provider;
     label = "AI 已连接";
-    detail = [ai.text?.provider, ai.vision?.provider].filter(Boolean).join(" / ");
+    detail = [ai.text?.provider, ai.vision?.provider]
+      .filter(Boolean)
+      .map(providerName)
+      .join(" · ");
   }
   const sidebar = document.querySelector(".js-sidebar-ai");
   if (sidebar) {

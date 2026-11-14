@@ -66,9 +66,11 @@ class Config:
 
     AI_VISION_PROVIDER = os.getenv("AI_VISION_PROVIDER", "qwen")
     AI_VISION_API_KEY = os.getenv("AI_VISION_API_KEY", "")
-    AI_VISION_BASE_URL = os.getenv(
-        "AI_VISION_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1"
-    ).rstrip("/")
-    AI_VISION_MODEL = os.getenv("AI_VISION_MODEL", "qwen-vl-max")
+    # Base URL is deliberately required from the environment. See
+    # AI_VISION_BASE_URL in .env.example (DashScope OpenAI-compatible mode).
+    AI_VISION_BASE_URL = os.getenv("AI_VISION_BASE_URL", "").strip().rstrip("/")
+    AI_VISION_MODEL = (
+        os.getenv("AI_VISION_MODEL", "").strip() or "qwen3.8-flash"
+    )
 
     JSON_SORT_KEYS = False

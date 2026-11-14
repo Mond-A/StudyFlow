@@ -21,6 +21,16 @@ from flask import current_app
 from ..utils.exceptions import AIServiceError
 from ..utils.timeutils import now_iso
 
+try:
+    import ssl
+
+    import truststore
+    from requests.adapters import HTTPAdapter as _HTTPAdapter
+except ImportError:  # Optional: requirements.txt installs it for normal use.
+    _SYSTEM_TRUST_AVAILABLE = False
+else:
+    _SYSTEM_TRUST_AVAILABLE = True
+
 logger = logging.getLogger("studyflow.ai")
 
 DEMO_PROVIDER = "StudyFlow 本地演示"
@@ -33,71 +43,139 @@ DEMO_NOTICE = (
 LIVE_NOTICE = "内容由真实 AI 模型生成，可能存在误差，请核对关键事实与原文。"
 
 
+if _SYSTEM_TRUST_AVAILABLE:
+
+    class _SystemTrustAdapter(_HTTPAdapter):
+        """Use the OS trust store while keeping normal certificate verification."""
+
+        def __init__(self, **kwargs):
+            self._system_ssl_context = truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+            super().__init__(**kwargs)
+
+        def init_poolmanager(self, *args, **kwargs):
+            kwargs["ssl_context"] = self._system_ssl_context
+            return super().init_poolmanager(*args, **kwargs)
+
+        def proxy_manager_for(self, *args, **kwargs):
+            kwargs["ssl_context"] = self._system_ssl_context
+            return super().proxy_manager_for(*args, **kwargs)
+
+
+def _new_http_session() -> requests.Session:
+    """Create a session that trusts the same roots as the operating system.
+
+    Corporate/campus TLS interception is common on Windows. certifi alone can
+    reject a locally-trusted chain (notably api.deepseek.com on some networks)
+    even though curl and browsers succeed. truststore keeps verification on and
+    uses the system's trusted root store. If the optional dependency is not
+    installed, requests' default certifi verification remains in use.
+    """
+    session = requests.Session()
+    if _SYSTEM_TRUST_AVAILABLE:
+        session.mount("https://", _SystemTrustAdapter())
+    return session
+
+
 class AIService:
     def __init__(self, config, http_session: requests.Session | None = None):
         self.config = config
-        self.http = http_session or requests.Session()
+        self.http = http_session or _new_http_session()
 
     @classmethod
     def from_app(cls) -> "AIService":
         return cls(current_app.config)
 
     # ── configuration / mode resolution ──────────────────────────────
+    @staticmethod
+    def _clean(value) -> str:
+        return str(value or "").strip()
+
     def _capability_config(self, capability: str) -> dict:
         if capability == "vision":
             return {
-                "key": self.config.get("AI_VISION_API_KEY", "").strip(),
-                "provider": self.config.get("AI_VISION_PROVIDER", "qwen"),
-                "base_url": self.config.get(
-                    "AI_VISION_BASE_URL",
-                    "https://dashscope.aliyuncs.com/compatible-mode/v1",
-                ).rstrip("/"),
-                "model": self.config.get("AI_VISION_MODEL", "qwen-vl-max"),
+                "key": self._clean(self.config.get("AI_VISION_API_KEY", "")),
+                "provider": self._clean(self.config.get("AI_VISION_PROVIDER", "qwen")) or "qwen",
+                # Never fall back to a hard-coded DashScope URL. The base URL
+                # must be explicitly configured in .env.
+                "base_url": self._clean(self.config.get("AI_VISION_BASE_URL", "")).rstrip("/"),
+                "model": self._clean(self.config.get("AI_VISION_MODEL", "")) or "qwen3.8-flash",
                 "key_env": "AI_VISION_API_KEY",
+                "base_url_env": "AI_VISION_BASE_URL",
+                "model_env": "AI_VISION_MODEL",
+                "capability_label": "视觉（Qwen）",
             }
         return {
-            "key": self.config.get("AI_TEXT_API_KEY", "").strip(),
-            "provider": self.config.get("AI_TEXT_PROVIDER", "deepseek"),
-            "base_url": self.config.get("AI_TEXT_BASE_URL", "https://api.deepseek.com/v1").rstrip(
-                "/"
-            ),
-            "model": self.config.get("AI_TEXT_MODEL", "deepseek-chat"),
+            "key": self._clean(self.config.get("AI_TEXT_API_KEY", "")),
+            "provider": self._clean(self.config.get("AI_TEXT_PROVIDER", "deepseek"))
+            or "deepseek",
+            "base_url": self._clean(
+                self.config.get("AI_TEXT_BASE_URL", "https://api.deepseek.com/v1")
+            ).rstrip("/"),
+            "model": self._clean(self.config.get("AI_TEXT_MODEL", "")) or "deepseek-chat",
             "key_env": "AI_TEXT_API_KEY",
+            "base_url_env": "AI_TEXT_BASE_URL",
+            "model_env": "AI_TEXT_MODEL",
+            "capability_label": "文本（DeepSeek）",
         }
+
+    @staticmethod
+    def _missing_config(config: dict) -> list[str]:
+        missing = []
+        if not config["key"]:
+            missing.append(config["key_env"])
+        if not config["base_url"]:
+            missing.append(config["base_url_env"])
+        if not config["model"]:
+            missing.append(config["model_env"])
+        return missing
+
+    def _configuration_error(self, config: dict, missing: list[str]) -> AIServiceError:
+        return AIServiceError(
+            f"{config['capability_label']} AI 配置不完整，缺少：{', '.join(missing)}。"
+            "请检查服务端 .env 后重启应用。",
+            code="AI_CONFIG_ERROR",
+            status_code=503,
+            details={"missing_env": missing},
+        )
 
     def _policy(self) -> str:
         policy = str(self.config.get("AI_DEMO_MODE", "auto")).strip().lower()
         return policy if policy in {"auto", "on", "off"} else "auto"
 
     def _effective_mode(self, capability: str) -> str:
-        configured = bool(self._capability_config(capability)["key"])
+        config = self._capability_config(capability)
         policy = self._policy()
         if policy == "on":
             return "demo"
-        if policy == "off":
-            return "live" if configured else "unavailable"
-        return "live" if configured else "demo"
+        missing = self._missing_config(config)
+        if not missing:
+            return "live"
+        # A configured key with an incomplete base URL/model is a real config
+        # error, not a reason to silently show demo output.
+        if config["key"] or policy == "off":
+            return "unavailable"
+        return "demo"
+
+    def _capability_status(self, capability: str) -> dict:
+        config = self._capability_config(capability)
+        missing = self._missing_config(config)
+        return {
+            "configured": bool(config["key"]),
+            "configured_by": config["key_env"],
+            "config_complete": not missing,
+            "missing_env": missing,
+            "provider": config["provider"],
+            "model": config["model"],
+            "base_url_configured": bool(config["base_url"]),
+            "effective_mode": self._effective_mode(capability),
+        }
 
     def status(self) -> dict:
-        text = self._capability_config("text")
-        vision = self._capability_config("vision")
         return {
             "policy": self._policy(),
             "demo_mode": self._policy() == "on",
-            "text": {
-                "configured": bool(text["key"]),
-                "configured_by": text["key_env"],
-                "provider": text["provider"],
-                "model": text["model"],
-                "effective_mode": self._effective_mode("text"),
-            },
-            "vision": {
-                "configured": bool(vision["key"]),
-                "configured_by": vision["key_env"],
-                "provider": vision["provider"],
-                "model": vision["model"],
-                "effective_mode": self._effective_mode("vision"),
-            },
+            "text": self._capability_status("text"),
+            "vision": self._capability_status("vision"),
             "ready": any(
                 self._effective_mode(capability) != "unavailable"
                 for capability in ("text", "vision")
@@ -115,18 +193,21 @@ class AIService:
             raise ValueError("Unknown AI capability")
         config = self._capability_config(capability)
         policy = self._policy()
+        missing = self._missing_config(config)
         if demo_requested or policy == "on":
             mode = "demo"
-        elif policy == "off" and not config["key"]:
+        elif config["key"]:
+            if missing:
+                raise self._configuration_error(config, missing)
+            mode = "live"
+        elif policy == "off":
             raise AIServiceError(
                 "AI 服务尚未配置。请在服务端 .env 中设置 "
                 f"{config['key_env']}，或将 AI_DEMO_MODE 设为 auto/on 后重试。",
                 code="AI_NOT_CONFIGURED",
                 status_code=503,
-                details={"missing_env": [config["key_env"]]},
+                details={"missing_env": missing or [config["key_env"]]},
             )
-        elif config["key"]:
-            mode = "live"
         else:
             mode = "demo"
 
@@ -183,10 +264,9 @@ class AIService:
         max_tokens: int,
     ) -> tuple[str, dict]:
         config = self._capability_config(capability)
-        if not config["key"]:
-            raise AIServiceError(
-                "AI 服务未配置密钥", code="AI_NOT_CONFIGURED", status_code=503
-            )
+        missing = self._missing_config(config)
+        if missing:
+            raise self._configuration_error(config, missing)
         url = f"{config['base_url']}/chat/completions"
         payload = {
             "model": config["model"],
@@ -225,11 +305,19 @@ class AIService:
             upstream_message = ""
             try:
                 body = response.json()
-                upstream_message = str(
+                raw_message = str(
                     (body.get("error") or {}).get("message")
                     or body.get("message")
                     or ""
-                )[:300]
+                )
+                # Never let an upstream error echo the key or Authorization
+                # header back to the browser/API client.
+                if config["key"]:
+                    raw_message = raw_message.replace(config["key"], "[redacted]")
+                raw_message = re.sub(
+                    r"(?i)\bBearer\s+[^\s,;]+", "Bearer [redacted]", raw_message
+                )
+                upstream_message = raw_message[:300]
             except ValueError:
                 upstream_message = ""
             if response.status_code in {401, 403}:
@@ -272,6 +360,11 @@ class AIService:
         except (ValueError, KeyError, IndexError, TypeError) as exc:
             raise ValueError("AI response has no usable message content") from exc
         usage = body.get("usage") if isinstance(body.get("usage"), dict) else {}
+        # Preserve the provider's actual model identifier for connectivity
+        # diagnostics; the API may return a dated snapshot behind an alias.
+        response_model = body.get("model")
+        if isinstance(response_model, str) and response_model.strip():
+            usage["response_model"] = response_model.strip()
         return content, usage
 
     def complete_json(
@@ -284,6 +377,7 @@ class AIService:
         validator: Callable[[dict], dict] | None = None,
         temperature: float = 0.2,
         max_tokens: int = 3500,
+        allow_text_only_vision: bool = False,
     ) -> tuple[dict, dict, dict]:
         """Call a real model and return (validated_json, usage, mode_info)."""
         mode_info = self.resolve_mode(capability)
@@ -301,12 +395,26 @@ class AIService:
         user_content: str | list
         if capability == "vision":
             image_urls = images or []
-            if not image_urls:
+            if not image_urls and not allow_text_only_vision:
                 raise AIServiceError(
                     "视觉分析需要图片", code="IMAGE_REQUIRED", status_code=400
                 )
             user_content = [{"type": "text", "text": user_prompt}]
             for data_url in image_urls[:2]:
+                # DashScope's OpenAI-compatible multimodal endpoint expects a
+                # data URL in an image_url part, never a local filesystem path
+                # or a plain-text filename.
+                if (
+                    not isinstance(data_url, str)
+                    or not data_url.startswith("data:image/")
+                    or ";base64," not in data_url
+                ):
+                    raise AIServiceError(
+                        "图片输入格式无效。视觉模型只接受服务端读取后的 Base64 "
+                        "data URL，不能把本地文件路径作为普通文本发送。",
+                        code="IMAGE_FORMAT_ERROR",
+                        status_code=400,
+                    )
                 user_content.append(
                     {"type": "image_url", "image_url": {"url": data_url}}
                 )
@@ -381,6 +489,45 @@ class AIService:
             code="AI_ERROR",
             status_code=502,
         ) from last_error
+
+    def probe(self, capability: str) -> dict:
+        """Perform a minimal live JSON request to verify endpoint/auth/model.
+
+        Used by scripts/test_ai_connection.py. It requires a live capability and
+        never falls back to demo mode or reports a fake success.
+        """
+        mode_info = self.resolve_mode(capability)
+        if mode_info["mode"] != "live":
+            raise AIServiceError(
+                "当前能力不在真实模型模式，未发起外部连通性测试",
+                code="AI_NOT_LIVE",
+                status_code=409,
+            )
+
+        def validate(raw: dict) -> dict:
+            if raw.get("pong") is not True:
+                raise ValueError("connectivity test did not return pong=true")
+            return {"pong": True}
+
+        result, usage, live_info = self.complete_json(
+            capability=capability,
+            system_prompt="这是服务连通性检查。严格按用户要求输出 JSON。",
+            user_prompt='只输出 JSON 对象：{"pong": true}',
+            validator=validate,
+            temperature=0.0,
+            max_tokens=128,
+            # A connectivity probe intentionally has no image. This is only
+            # used by the opt-in live test script.
+            allow_text_only_vision=True,
+        )
+        return {
+            "capability": capability,
+            "provider": live_info["provider"],
+            "configured_model": live_info["model"],
+            "response_model": usage.get("response_model"),
+            "usage": usage,
+            "result": result,
+        }
 
 
 def build_demo_metadata(capability: str) -> dict:

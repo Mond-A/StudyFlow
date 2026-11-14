@@ -179,7 +179,6 @@ function renderPage(container) {
     <div class="page-shell">
       <header class="page-header">
         <div class="page-heading">
-          <p class="eyebrow">FLASHCARDS · 闪卡复习</p>
           <h1>用主动回忆对抗遗忘</h1>
           <p class="page-subtitle">把笔记中的关键知识变成问题卡。先回忆，再翻面，最后诚实评估掌握程度。</p>
         </div>

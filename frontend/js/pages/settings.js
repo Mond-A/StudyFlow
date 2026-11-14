@@ -58,7 +58,7 @@ function renderPage(container) {
   const ai = settingsData.ai;
   const demo = settingsData.demo;
   const meta = getMeta();
-  const version = meta?.app?.version || "MVP";
+  const version = meta?.app?.version?.split("-")[0] || "0.7.0";
   const counts = demo.counts || {};
   const totalDemo = demo.total_records || 0;
 
@@ -66,9 +66,8 @@ function renderPage(container) {
     <div class="page-shell settings-page">
       <header class="page-header">
         <div class="page-heading">
-          <p class="eyebrow">SETTINGS · 设置</p>
-          <h1>让 StudyFlow 更贴合你的节奏</h1>
-          <p class="page-subtitle">管理个人偏好、查看 AI 服务状态与本地数据。你的 AI Key 永远不会出现在浏览器中。</p>
+          <h1>设置</h1>
+          <p class="page-subtitle">管理个人资料、学习偏好、AI 服务与本地数据。API Key 只保存在服务端。</p>
         </div>
         <div class="page-actions">
           <a class="btn btn-secondary" href="/api/health" target="_blank" rel="noopener">${icon("heart-pulse")}<span>API 健康检查</span></a>

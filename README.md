@@ -25,6 +25,7 @@ StudyFlow 是一个面向中学生的全栈学习工作台：把作业规划、�
 - [后续开发接口](#后续开发接口)
 - [常见问题](#常见问题)
 - [API 文档](docs/API.md)
+- [UI 设计系统](docs/UI_DESIGN_SYSTEM.md)
 
 ---
 
@@ -41,7 +42,7 @@ StudyFlow 是一个面向中学生的全栈学习工作台：把作业规划、�
 - ✅ 统一 REST API / 统一 AI Service / JSON 校验 / 有限重试 / 明确错误语义
 - ✅ SQLite 持久化、演示数据可载入/清除、JSON 导出
 - ✅ 后端 pytest 测试、浏览器自动化联调（桌面 + 390px 移动端）
-- ⚠️ 真实 Qwen/DeepSeek 外部 API 因本开发环境没有密钥而未实际调用，详见[已知限制](#已知限制与未实测项)
+- ✅ 已使用本地 `.env` 真实凭据完成 Qwen 视觉（含图片）与 DeepSeek 文本连通性测试；Key 不写入代码、日志或版本库
 
 ---
 
@@ -205,6 +206,9 @@ data/uploads/
 | `AI_DEMO_MODE` | `auto` | `auto` / `on` / `off`，见下文 |
 | `AI_TIMEOUT` | `60` | 请求 AI 的超时秒数 |
 | `AI_MAX_RETRIES` | `2` | JSON/网络类错误的自动重试次数（不含首次） |
+| `AI_TEXT_MODEL` | `deepseek-chat` | DeepSeek 文本模型 |
+| `AI_VISION_MODEL` | `qwen3.8-flash` | Qwen 视觉模型（必须支持图片输入） |
+| `AI_VISION_BASE_URL` | 无默认值 | 必须由 `.env` 提供百炼 OpenAI 兼容接口地址 |
 
 ---
 
@@ -219,14 +223,24 @@ AI_TEXT_BASE_URL=https://api.deepseek.com/v1
 AI_TEXT_MODEL=deepseek-chat
 ```
 
-### 视觉模型（Qwen-VL / 阿里云百炼，OpenAI 兼容模式）
+### 视觉模型（Qwen 3.8 Flash / 阿里云百炼，OpenAI 兼容模式）
 
 ```dotenv
 AI_VISION_PROVIDER=qwen
 AI_VISION_API_KEY=your_key_here
 AI_VISION_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
-AI_VISION_MODEL=qwen-vl-max
+AI_VISION_MODEL=qwen3.8-flash
 ```
+
+`AI_VISION_BASE_URL` **没有后端默认值**，必须由 `.env` 提供；代码中不再硬编码百炼地址。`AI_VISION_API_KEY` 只从服务端环境变量读取。
+
+图片识别链路会先在服务端读取上传文件并编码为 Base64 data URL，再以 OpenAI 兼容的多模态消息发送：
+
+```json
+{"type": "image_url", "image_url": {"url": "data:image/png;base64,..."}}
+```
+
+本地文件路径不会作为普通文本发给模型。`qwen3.8-flash` 必须在该百炼账号中支持视觉输入；若供应商账号未开放此模型或多模态能力，API 会返回明确的拒绝/鉴权错误，不会静默切换模型。
 
 ### 三种运行策略
 
@@ -249,14 +263,38 @@ AI_VISION_MODEL=qwen-vl-max
 
 `backend/services/ai_service.py` 统一处理：
 
-- 文本 / 视觉能力、model/base URL/key 的配置读取；
+- 文本 / 视觉能力、model/base URL/key 的配置读取；Qwen 的 Base URL 无代码默认值，必须来自环境变量；
 - OpenAI-compatible `/chat/completions` 请求；
+- Qwen 视觉请求使用 `image_url` 多模态内容块，图片以 Base64 data URL 传输，不把本地路径当文本；
 - JSON 提取（支持代码围栏、前缀文本）、字段归一化回调校验；
 - JSON 格式错误有限次重试及反馈；
-- 超时、限流、5xx、鉴权、请求拒绝的语义化错误；
-- 不把 Key 暴露到响应/日志/错误消息。
+- 超时、限流、5xx、鉴权、请求拒绝、配置不完整的语义化错误；
+- AI HTTPS 请求使用 `truststore` 读取操作系统 CA 库（保持证书校验），兼容企业/校园网络的自签拦截链；
+- 返回提供方实际模型标识（`usage.response_model`）用于诊断，不把 Key 暴露到响应/日志/错误消息。
 
 `backend/services/ai_features.py` 是业务门面：每个工具拥有独立的 prompt、输出归一化与演示实现。真实模型的异常输出不会直接进入前端，必须先过归一化。
+
+### 真实 API 连通性测试
+
+配置好 `.env` 后，可运行可选的、会产生真实计费请求的连通性测试：
+
+```bash
+# 默认：测试 Qwen 端点连通性，成功后自动生成测试图并验证多模态图片输入
+python scripts/test_ai_connection.py
+
+# 同时测试 DeepSeek 文本与 Qwen 视觉
+python scripts/test_ai_connection.py --capability all
+```
+
+脚本的行为：
+
+1. 检查 Key、`AI_VISION_BASE_URL`、模型名和 `AI_DEMO_MODE`，缺项时不发请求；
+2. 第一步向 Qwen 端点发送纯文本 JSON 往返请求，验证鉴权、模型名与接口地址；
+3. **只有连通性成功后**，才在内存中生成一张“白底红色圆形”PNG，以 data URL 发送并校验模型对形状/颜色的 JSON 识别；
+4. 只输出脱敏后的配置和模型名称，绝不打印 API Key；
+5. 退出码：`0` 全部通过，`1` 请求/校验失败，`2` 缺少凭据或演示模式阻止了真实调用。
+
+脚本详细说明见 [`scripts/test_ai_connection.py`](scripts/test_ai_connection.py)。若没有 Key，它会返回 `2` 并明确标注未进行真实调用。
 
 ---
 
@@ -311,9 +349,11 @@ studyflow/
 ├── data/                      # SQLite 与上传文件（运行时创建）
 ├── docs/
 │   ├── API.md
+│   ├── UI_DESIGN_SYSTEM.md    # Paper & Ink 设计系统、响应式与页面构图
 │   └── screenshots/
 ├── scripts/
-│   └── init_db.py
+│   ├── init_db.py
+│   └── test_ai_connection.py  # 可选的真实 Qwen/DeepSeek 连通测试
 ├── .env.example
 ├── requirements.txt
 ├── pytest.ini
@@ -370,7 +410,9 @@ python -m pytest
 - 演示数据载入/清除、只清演示数据、JSON 导出
 - 上传文件真实性与安全校验
 - 所有 AI 工具的演示模式，以及严格模式 `AI_NOT_CONFIGURED`
-- 使用 fake HTTP session 测试 AI 网关的 JSON 修复、有限重试、鉴权错误不泄露 Key（不是外部 API 实测）
+- Qwen 视觉请求必须携带 `image_url` 多模态块，Base64 data URL 进入 content，文件路径不会被当作图片文本发送
+- Base URL 缺失时返回 `AI_CONFIG_ERROR` 且不发起外部请求
+- 使用 fake HTTP session 测试 AI 网关的 JSON 修复、有限重试、鉴权错误不泄露 Key（传输层单元测试本身不访问外网；真实调用结果见下文）
 
 本次开发还使用无头 Chrome + CDP 做了真实浏览器联调：
 
@@ -383,22 +425,36 @@ python -m pytest
 - 确认弹窗的取消路径
 - 390px 移动视口下主要页面无横向溢出，移动抽屉导航正常
 
-### 真实外部 AI 未实测声明
+### 真实外部 AI 实测记录
 
-**本开发环境没有配置真实的 DeepSeek / Qwen API Key，因此没有实际发起外部模型调用。**  
-已通过真实 HTTP 客户端接口的 fake-session 单元测试验证统一网关的请求构造、鉴权错误、JSON 解析和重试逻辑，并通过演示模式验证所有端点的完整数据流。配置 Key 后，仍建议用一张真实作业图片与一篇真实作文做一次端到端冒烟测试，确认真实模型返回符合提示词 schema。
+本次已使用本地 `.env` 中的真实凭据完成外部 AI 调用，且没有打印、输出或提交任何 API Key。2026-11-11 的实测结果：
+
+- **Qwen 视觉连通性**：PASS；请求模型与响应模型均为 `qwen3.8-flash`；
+- **Qwen 图片输入**：PASS；脚本以 Base64 data URL + `image_url` 多模态消息发送内存中生成的白底红色圆形 PNG，模型返回 `{"shape":"circle","color":"red"}`；
+- **应用级视觉链路**：`POST /api/ai/tasks/recognize` 使用真实图片上传，返回 `ai.mode=live`、`provider=qwen`、`model=qwen3.8-flash`，识别出 1 条作业任务；
+- **DeepSeek 文本连通性**：PASS；请求模型为 `deepseek-chat`，上游返回的响应模型名为 `deepseek-flash`；
+- **应用级文本链路**：`POST /api/ai/express/polish` 返回 `ai.mode=live`、`provider=deepseek`；
+- 连通性脚本最终退出码：`0`。
+
+测试图片和上传文件在验证后已删除。API Key 只存在于本地 `.env` 中；`.env` 已被 `.gitignore` 忽略。可在更换 Key 后重新执行：
+
+```bash
+python scripts/test_ai_connection.py --capability all
+```
+
+由于本地网络对 DeepSeek 的证书链使用了系统信任的拦截证书，AI HTTP 客户端通过 `truststore` 使用操作系统 CA 库（保持证书校验开启），没有使用 `verify=False`。
 
 ---
 
 ## 已知限制与未实测项
 
 1. **单用户、无登录**。所有 API 默认访问默认用户，适合本地个人使用与后续扩展，不适合直接公网部署。
-2. **真实 Qwen/DeepSeek 调用未实测**（无密钥）。模型名称与 base URL 均可在 `.env` 修改；如果供应商接口有额外字段差异，需要在 `ai_service.py` 调整。
+2. **真实模型的可用性与网络环境相关**。本次账号/网络下 Qwen `qwen3.8-flash`（含图片）和 DeepSeek 文本均实测通过；DeepSeek 响应模型名为 `deepseek-flash`（请求配置仍保留 `deepseek-chat` 别名）。换账号、换模型或换网络后应以 `scripts/test_ai_connection.py` 重新验证，供应商拒绝时会明确返回 `AI_REQUEST_REJECTED` 或 `AI_AUTH_ERROR`。
 3. **演示模式不执行真实 OCR**。图片识别只返回明显标记的示例结构，不会假装已识别图片内容。
 4. **无后台任务队列**。AI 请求是同步的，受浏览器 fetch 90 秒和模型自身超时限制；大型视觉请求可能较慢。
 5. **番茄钟不跨页面持续计时**。离开 Focus 页面会停止当前计时，建议完成一轮后离开或使用手动补录。
 6. **知识图谱与笔记 PDF 等高级能力未做**。当前支持 Markdown 图片识别、检查、KaTeX 与 Cytoscape 交互图。
-7. **UI 已可日常使用，但不是最终视觉打磨版本**。项目目标即为 Codex 后续继续精修留出结构，详见下节。
+7. **UI 已完成 Paper & Ink 设计系统精修**，覆盖 10 个页面与 1440/1024/768/390 四档视口；深色主题尚未启用，但颜色、字号、圆角和控件已改为可从语义 token 扩展的结构，详见 [UI 设计系统](docs/UI_DESIGN_SYSTEM.md)。
 8. **无自动备份计划**。可在设置页导出 JSON；SQLite 文件也可直接备份。
 
 ---

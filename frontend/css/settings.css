@@ -1,4 +1,4 @@
-/* ── Settings ─────────────────────────────────────────────────────── */
+/* 鈹€鈹€ Settings 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€ */
 .settings-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 310px;
@@ -95,13 +95,13 @@
 }
 
 .engine-card-head strong {
-  font-size: 10.5px;
+  font-size: 12px;
   color: var(--ink-soft);
 }
 
 .engine-state {
   color: var(--muted-light);
-  font-size: 8.5px;
+  font-size: 12px;
 }
 
 .engine-dot {
@@ -139,7 +139,7 @@
 .engine-details dt {
   flex: 0 0 56px;
   color: var(--muted-light);
-  font-size: 8.5px;
+  font-size: 12px;
   padding-top: 1px;
 }
 
@@ -148,7 +148,7 @@
   min-width: 0;
   margin: 0;
   color: var(--ink-soft);
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.5;
   word-break: break-word;
 }
@@ -158,7 +158,7 @@
   border-radius: 3px;
   background: var(--surface-muted);
   color: var(--ink-soft);
-  font-size: 8px;
+  font-size: 12px;
 }
 
 .ai-policy-row {
@@ -171,7 +171,7 @@
   border-radius: 7px;
   background: var(--surface-muted);
   color: var(--muted-light);
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .ai-policy-row > span:first-child {
@@ -184,13 +184,13 @@
   border-radius: 3px;
   background: #fff;
   border: 1px solid var(--line);
-  font-size: 8.5px;
+  font-size: 12px;
   color: var(--primary-ink);
 }
 
 .ai-policy-row .muted-note {
   flex-basis: 100%;
-  font-size: 8px;
+  font-size: 12px;
 }
 
 .env-details {
@@ -206,7 +206,7 @@
   padding: 8px 10px;
   cursor: pointer;
   color: var(--muted);
-  font-size: 9.5px;
+  font-size: 12px;
   font-weight: 500;
   list-style: none;
 }
@@ -226,7 +226,7 @@
 
 .env-guide > p {
   color: var(--muted);
-  font-size: 9.5px;
+  font-size: 12px;
   line-height: 1.65;
   margin-bottom: 7px;
 }
@@ -235,16 +235,16 @@
   padding: 1px 4px;
   border-radius: 3px;
   background: var(--surface-muted);
-  font-size: 8.5px;
+  font-size: 12px;
 }
 
 .env-snippet {
   margin: 0;
   padding: 10px;
   border-radius: 7px;
-  background: #0f172a;
+  background: var(--ink);
   color: #dbeafe;
-  font-size: 8.5px;
+  font-size: 12px;
   line-height: 1.65;
   overflow-x: auto;
   white-space: pre;
@@ -259,7 +259,7 @@
 }
 
 .env-actions .muted-note {
-  font-size: 8px;
+  font-size: 12px;
 }
 
 .demo-summary-box {
@@ -275,14 +275,14 @@
 
 .demo-summary-box strong {
   display: block;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--ink-soft);
 }
 
 .demo-summary-box p {
   margin-top: 2px;
   color: var(--muted);
-  font-size: 9.5px;
+  font-size: 12px;
   line-height: 1.65;
 }
 
@@ -293,7 +293,7 @@
   background: #fff;
   border: 1px solid var(--line);
   color: var(--muted-light);
-  font-size: 8.5px;
+  font-size: 12px;
   white-space: nowrap;
 }
 
@@ -329,7 +329,7 @@
 
 .demo-count-grid span {
   color: var(--muted-light);
-  font-size: 8px;
+  font-size: 12px;
   white-space: nowrap;
 }
 
@@ -342,7 +342,7 @@
 }
 
 .settings-action-row .btn {
-  font-size: 9.5px;
+  font-size: 12px;
 }
 
 .settings-profile-card {
@@ -364,7 +364,7 @@
 .settings-profile-card > p {
   margin-top: 2px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .profile-since {
@@ -376,7 +376,7 @@
   border-radius: 5px;
   background: var(--surface-muted);
   color: var(--muted-light);
-  font-size: 8px;
+  font-size: 12px;
 }
 
 .profile-since .icon {
@@ -411,7 +411,7 @@
 
 .profile-stat-row span {
   color: var(--muted-light);
-  font-size: 8.5px;
+  font-size: 12px;
 }
 
 .settings-info-card h3 {
@@ -419,7 +419,7 @@
   align-items: center;
   gap: 5px;
   margin-bottom: 9px;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .settings-info-card h3 .icon {
@@ -441,23 +441,23 @@
   justify-content: space-between;
   gap: 10px;
   padding-bottom: 5px;
-  border-bottom: 1px dashed #eef2f7;
+  border-bottom: 1px dashed var(--line-soft);
 }
 
 .settings-info-card dt {
   color: var(--muted-light);
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .settings-info-card dd {
   margin: 0;
   color: var(--ink-soft);
-  font-size: 9px;
+  font-size: 12px;
   text-align: right;
 }
 
 .settings-info-card .muted-note {
-  font-size: 8.5px;
+  font-size: 12px;
   line-height: 1.6;
 }
 
@@ -492,14 +492,14 @@
 
 .settings-note-card strong {
   display: block;
-  font-size: 10px;
+  font-size: 12px;
   color: var(--ink-soft);
   margin-bottom: 2px;
 }
 
 .settings-note-card p {
   color: var(--muted);
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.65;
 }
 
@@ -507,7 +507,7 @@
   padding: 1px 3px;
   border-radius: 3px;
   background: #fff;
-  font-size: 8px;
+  font-size: 12px;
 }
 
 .settings-page .btn .icon {
@@ -559,7 +559,7 @@
   }
 
   .env-snippet {
-    font-size: 8px;
+    font-size: 12px;
   }
 }
 

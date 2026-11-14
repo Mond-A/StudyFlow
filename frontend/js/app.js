@@ -34,8 +34,16 @@ const root = document.getElementById("app");
 const content = mountLayout(root);
 refreshIcons(document);
 
+window.addEventListener("studyflow:meta", (event) => applyMeta(event.detail));
+
+// Do not mount the first page before metadata is available. Pages such as
+// AI Toolbox read AI configuration during their initial render; mounting
+// early used to leave “未配置” pills on screen even when both models were live.
 loadMeta()
-  .then((meta) => applyMeta(meta))
+  .then((meta) => {
+    applyMeta(meta);
+    initRouter({ pageRoutes, container: content });
+  })
   .catch((error) => {
     console.error("Metadata load failed", error);
     showToast(
@@ -43,9 +51,8 @@ loadMeta()
       "error",
       { duration: 7000 }
     );
+    initRouter({ pageRoutes, container: content });
   });
-
-window.addEventListener("studyflow:meta", (event) => applyMeta(event.detail));
 
 window.addEventListener("offline", () => {
   showToast("网络已断开。本地数据仍保存在服务端，恢复连接后请刷新。", "warning", {
@@ -60,5 +67,3 @@ window.addEventListener("unhandledrejection", (event) => {
   }
   console.error("Unhandled promise rejection", event.reason);
 });
-
-initRouter({ pageRoutes, container: content });

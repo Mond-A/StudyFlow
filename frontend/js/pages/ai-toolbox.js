@@ -1,6 +1,6 @@
 import { api } from "../api.js";
 import { icon, refreshIcons } from "../components/icons.js";
-import { aiBanner, aiModeBadge, aiResultFooter } from "../components/ai-display.js";
+import { aiBanner, aiResultFooter } from "../components/ai-display.js";
 import { createImageUploader } from "../components/upload.js";
 import { showToast, toastError } from "../components/toast.js";
 import { getMeta } from "../services/store.js";
@@ -103,9 +103,8 @@ function renderPage(container) {
     <div class="page-shell">
       <header class="page-header">
         <div class="page-heading">
-          <p class="eyebrow">AI TOOLBOX · 智能工具箱</p>
-          <h1>让 AI 做你的学习搭档</h1>
-          <p class="page-subtitle">六个接近真实学习场景的小工具。所有结果都需你核对，AI 不替你做最终判断。</p>
+          <h1>AI 学习工具</h1>
+          <p class="page-subtitle">选择一个工具，输入材料后开始分析。所有结果都需要你核对。</p>
         </div>
         <div class="page-actions">
           <a class="btn btn-secondary" href="#/settings">${icon("sliders-horizontal")}<span>AI 配置</span></a>
@@ -118,7 +117,6 @@ function renderPage(container) {
           ${enginePill("图片理解", ai?.vision)}
         </div>
         <div class="toolbox-status-note">
-          ${aiModeBadge(ai, { small: true })}
           <span>${
             demoOrUnavailable
               ? "未完整配置真实模型。每次结果都会明确标记为演示模式。"
@@ -168,7 +166,7 @@ function renderToolPanel(tool, ai) {
     <div class="tool-panel-header">
       <span class="tool-panel-icon">${icon(tool.icon)}</span>
       <div>
-        <div class="tool-panel-title-row"><h2>${tool.title}</h2>${aiModeBadge(ai, { small: true })}</div>
+        <div class="tool-panel-title-row"><h2>${tool.title}</h2></div>
         <p>${tool.description}</p>
       </div>
     </div>

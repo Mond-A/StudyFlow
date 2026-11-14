@@ -212,7 +212,6 @@ function renderPage(container) {
     <div class="page-shell notes-page">
       <header class="page-header">
         <div class="page-heading">
-          <p class="eyebrow">NOTES · 智能笔记</p>
           <h1>把知识整理成自己的结构</h1>
           <p class="page-subtitle">手写笔记数字化、AI 检查、公式渲染与知识点关系图，都在同一个工作区完成。</p>
         </div>
@@ -273,7 +272,17 @@ async function selectNote(noteId) {
   }
   state.selectedId = noteId;
   state.activeTab = "edit";
-  refreshCurrent({ preserveScroll: true });
+  await refreshCurrent({ preserveScroll: true });
+  // On tablet/mobile the list and editor are stacked. Selecting a note should
+  // take the learner directly to the editor rather than making them hunt for it.
+  if (window.innerWidth <= 900) {
+    requestAnimationFrame(() => {
+      pageRoot?.querySelector(".notes-editor, .notes-empty")?.scrollIntoView({
+        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+        block: "start",
+      });
+    });
+  }
 }
 
 function initEditor() {

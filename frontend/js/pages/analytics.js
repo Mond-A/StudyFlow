@@ -86,7 +86,6 @@ function buildPage(container, analytics) {
     <div class="page-shell">
       <header class="page-header">
         <div class="page-heading">
-          <p class="eyebrow">ANALYTICS · 成绩分析</p>
           <h1>看见趋势，而不只是分数</h1>
           <p class="page-subtitle">整理考试记录，观察各科变化，用数据找到下一步值得投入的方向。</p>
         </div>

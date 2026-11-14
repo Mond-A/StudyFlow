@@ -1,4 +1,4 @@
-/* ── Focus timer ──────────────────────────────────────────────────── */
+/* 鈹€鈹€ Focus timer 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€ */
 .focus-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 340px;
@@ -29,7 +29,7 @@
   border-radius: 6px;
   background: transparent;
   color: var(--muted);
-  font-size: 10.5px;
+  font-size: 12px;
   font-weight: 500;
   white-space: nowrap;
 }
@@ -73,14 +73,14 @@
 
 .timer-context-field > span {
   color: var(--muted-light);
-  font-size: 8.5px;
+  font-size: 12px;
   font-weight: 600;
 }
 
 .timer-context-field .input {
   background: var(--surface);
   min-height: 32px;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .timer-duration-field {
@@ -111,7 +111,7 @@
 
 .timer-ring-track {
   fill: none;
-  stroke: #eef2f7;
+  stroke: var(--line-soft);
   stroke-width: 9;
 }
 
@@ -136,7 +136,7 @@
 
 .timer-mode-label {
   color: var(--muted-light);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -154,7 +154,7 @@
 
 .timer-display > span:last-child {
   color: var(--muted-light);
-  font-size: 10px;
+  font-size: 12px;
   margin-top: 2px;
 }
 
@@ -183,7 +183,7 @@
   gap: 4px;
   margin-top: 14px;
   color: var(--muted-light);
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.55;
   text-align: center;
 }
@@ -211,7 +211,7 @@
 
 .manual-session-card .input {
   min-height: 34px;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .manual-session-card .btn {
@@ -272,7 +272,7 @@
 
 .achievement-tile strong {
   display: block;
-  font-size: 10.5px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--ink-soft);
 }
@@ -280,7 +280,7 @@
 .achievement-tile p {
   margin-top: 2px;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.5;
 }
 
@@ -289,7 +289,7 @@
   display: block;
   margin-top: 5px;
   color: var(--amber);
-  font-size: 8px;
+  font-size: 12px;
 }
 
 .achievement-locked-label {
@@ -299,10 +299,10 @@
 .achievement-footnote {
   margin-top: 10px;
   color: var(--muted-light);
-  font-size: 9px;
+  font-size: 12px;
 }
 
-/* ── Flashcards ───────────────────────────────────────────────────── */
+/* 鈹€鈹€ Flashcards 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€ */
 .flashcards-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 330px;
@@ -335,7 +335,7 @@
   border-radius: 5px;
   background: var(--amber-soft);
   color: var(--amber);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 600;
   white-space: nowrap;
 }
@@ -351,7 +351,7 @@
   gap: 8px;
   margin-bottom: 12px;
   color: var(--muted-light);
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .review-progress-bar {
@@ -372,7 +372,7 @@
 
 .review-progress-row strong {
   color: var(--muted);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 600;
   white-space: nowrap;
 }
@@ -384,7 +384,7 @@
   gap: 6px 10px;
   margin-bottom: 8px;
   color: var(--muted-light);
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .review-card-meta > span {
@@ -432,7 +432,7 @@
   top: 12px;
   left: 14px;
   color: var(--muted-light);
-  font-size: 8.5px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -469,7 +469,7 @@
   align-items: center;
   gap: 4px;
   color: var(--muted-light);
-  font-size: 8.5px;
+  font-size: 12px;
 }
 
 .flashcard-tap-hint .icon {
@@ -490,7 +490,7 @@
 .review-rating > p {
   text-align: center;
   color: var(--muted);
-  font-size: 9.5px;
+  font-size: 12px;
   margin-bottom: 7px;
 }
 
@@ -532,13 +532,13 @@
 }
 
 .rating-button strong {
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--ink-soft);
 }
 
 .rating-button small {
-  font-size: 8px;
+  font-size: 12px;
   color: var(--muted-light);
 }
 
@@ -583,11 +583,11 @@
 }
 
 .review-footer .btn {
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .review-footer .muted-note {
-  font-size: 8.5px;
+  font-size: 12px;
 }
 
 .review-complete {
@@ -623,7 +623,7 @@
 .review-complete p {
   max-width: 390px;
   color: var(--muted);
-  font-size: 10.5px;
+  font-size: 12px;
   line-height: 1.65;
 }
 
@@ -648,7 +648,7 @@
 
 .generate-card .input {
   min-height: 35px;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .review-tips-card {
@@ -660,7 +660,7 @@
   align-items: center;
   gap: 5px;
   margin-bottom: 8px;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .review-tips-card h3 .icon {
@@ -673,7 +673,7 @@
   margin: 0;
   padding-left: 16px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.75;
 }
 
@@ -738,13 +738,13 @@
 
 .manage-mastery-label {
   color: var(--muted-light);
-  font-size: 8.5px;
+  font-size: 12px;
 }
 
 .manage-front {
   display: block;
   color: var(--ink-soft);
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 500;
   line-height: 1.5;
 }
@@ -752,7 +752,7 @@
 .manage-back {
   margin-top: 2px;
   color: var(--muted);
-  font-size: 9.5px;
+  font-size: 12px;
   line-height: 1.55;
   white-space: nowrap;
   overflow: hidden;
@@ -766,7 +766,7 @@
   gap: 4px;
   flex: 0 0 auto;
   color: var(--muted-light);
-  font-size: 8.5px;
+  font-size: 12px;
   white-space: nowrap;
 }
 
@@ -819,7 +819,7 @@
 
 .generated-card strong {
   display: block;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.5;
   color: var(--ink-soft);
 }
@@ -827,7 +827,7 @@
 .generated-card p {
   margin-top: 2px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.6;
 }
 
@@ -840,7 +840,7 @@
   border-radius: 4px;
   background: var(--surface-muted);
   color: var(--muted-light);
-  font-size: 8.5px;
+  font-size: 12px;
 }
 
 .knowledge-point-tag .icon {
@@ -848,7 +848,7 @@
   height: 10px;
 }
 
-/* ── Error book ───────────────────────────────────────────────────── */
+/* 鈹€鈹€ Error book 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€ */
 .error-filterbar {
   display: flex;
   align-items: center;
@@ -881,7 +881,7 @@
   align-items: center;
   gap: 4px;
   color: var(--muted-light);
-  font-size: 8.5px;
+  font-size: 12px;
   white-space: nowrap;
 }
 
@@ -926,7 +926,7 @@
   align-items: center;
   gap: 3px;
   color: var(--muted-light);
-  font-size: 8.5px;
+  font-size: 12px;
 }
 
 .error-date .icon {
@@ -949,7 +949,7 @@
 }
 
 .error-card-actions .btn {
-  font-size: 9px;
+  font-size: 12px;
   min-height: 27px;
   padding: 3px 7px;
 }
@@ -966,7 +966,7 @@
 
 .error-question {
   color: var(--ink-soft);
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 500;
   line-height: 1.7;
   word-break: break-word;
@@ -978,7 +978,7 @@
   gap: 4px;
   padding: 3px 7px;
   border-radius: 999px;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 600;
   white-space: nowrap;
 }
@@ -1021,7 +1021,7 @@
   border-radius: 5px;
   background: var(--primary-soft);
   color: var(--primary-ink);
-  font-size: 8.5px;
+  font-size: 12px;
   font-weight: 500;
 }
 
@@ -1047,7 +1047,7 @@
   align-items: center;
   gap: 4px;
   color: var(--muted);
-  font-size: 9.5px;
+  font-size: 12px;
   cursor: pointer;
   list-style: none;
 }
@@ -1086,14 +1086,14 @@
 .error-analysis > span {
   display: block;
   color: var(--muted-light);
-  font-size: 8.5px;
+  font-size: 12px;
   font-weight: 600;
   margin-bottom: 3px;
 }
 
 .error-answer-block p {
   color: var(--ink-soft);
-  font-size: 10.5px;
+  font-size: 12px;
   line-height: 1.65;
   white-space: pre-wrap;
 }
@@ -1108,7 +1108,7 @@
 
 .error-analysis p {
   color: #92400e;
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.65;
 }
 
@@ -1133,7 +1133,7 @@
 }
 
 .error-page-tip p {
-  font-size: 9.5px;
+  font-size: 12px;
   line-height: 1.7;
 }
 
@@ -1163,19 +1163,19 @@
 .classify-row > span:first-child {
   flex: 0 0 63px;
   color: var(--muted-light);
-  font-size: 9px;
+  font-size: 12px;
   padding-top: 2px;
 }
 
 .classify-row > strong {
-  font-size: 10.5px;
+  font-size: 12px;
   color: var(--ink-soft);
 }
 
 .classify-row > p {
   flex: 1;
   color: var(--muted);
-  font-size: 10.5px;
+  font-size: 12px;
   line-height: 1.65;
 }
 
@@ -1183,7 +1183,7 @@
   margin-top: 0;
 }
 
-/* ── Daily report ─────────────────────────────────────────────────── */
+/* 鈹€鈹€ Daily report 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€ */
 .report-date-nav {
   display: inline-flex;
   align-items: center;
@@ -1199,7 +1199,7 @@
   background: transparent;
   min-height: 28px;
   width: 130px;
-  font-size: 10.5px;
+  font-size: 12px;
   box-shadow: none;
 }
 
@@ -1231,7 +1231,7 @@
   gap: 4px;
   margin-bottom: 6px;
   color: var(--primary);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.02em;
 }
@@ -1251,7 +1251,7 @@
 .report-hero-copy > p {
   margin-top: 6px;
   color: var(--muted);
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1.7;
   max-width: 750px;
 }
@@ -1263,7 +1263,7 @@
   gap: 6px 12px;
   margin-top: 11px;
   color: var(--muted);
-  font-size: 9.5px;
+  font-size: 12px;
 }
 
 .report-hero-tags > span {
@@ -1287,7 +1287,7 @@
 
 .report-goal-ring > span {
   color: var(--muted-light);
-  font-size: 8.5px;
+  font-size: 12px;
 }
 
 .report-metrics {
@@ -1339,7 +1339,7 @@
 .report-metric-label {
   display: block;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .report-metric > strong {
@@ -1354,14 +1354,14 @@
 .report-metric > strong small {
   margin-left: 3px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
 }
 
 .report-metric > p {
   margin-top: 2px;
   color: var(--muted-light);
-  font-size: 8.5px;
+  font-size: 12px;
   line-height: 1.5;
 }
 
@@ -1400,7 +1400,7 @@
 }
 
 .subject-minute-label strong {
-  font-size: 9.5px;
+  font-size: 12px;
   color: var(--muted);
   font-weight: 500;
 }
@@ -1423,7 +1423,7 @@
   align-items: center;
   gap: 9px;
   padding: 8px 2px;
-  border-bottom: 1px solid #eef2f7;
+  border-bottom: 1px solid var(--line-soft);
 }
 
 .report-task-list li:last-child {
@@ -1466,7 +1466,7 @@
 }
 
 .report-task-list li strong {
-  font-size: 10.5px;
+  font-size: 12px;
   font-weight: 500;
   color: var(--ink-soft);
   white-space: nowrap;
@@ -1476,13 +1476,13 @@
 
 .report-task-list li div span {
   color: var(--muted-light);
-  font-size: 8.5px;
+  font-size: 12px;
 }
 
 .report-task-status {
   flex: 0 0 auto;
   color: var(--muted-light);
-  font-size: 8.5px;
+  font-size: 12px;
 }
 
 .report-task-list li.is-done .report-task-status {
@@ -1510,7 +1510,7 @@
 .timeline-time {
   padding-top: 1px;
   color: var(--muted-light);
-  font-size: 8.5px;
+  font-size: 12px;
   text-align: right;
 }
 
@@ -1546,14 +1546,14 @@
 }
 
 .report-timeline strong {
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--ink-soft);
 }
 
 .report-timeline div span {
   color: var(--muted-light);
-  font-size: 8.5px;
+  font-size: 12px;
 }
 
 .report-updates-grid {
@@ -1567,7 +1567,7 @@
   align-items: center;
   gap: 5px;
   margin-bottom: 8px;
-  font-size: 10.5px;
+  font-size: 12px;
 }
 
 .mini-report-card h3 .icon {
@@ -1578,7 +1578,7 @@
 
 .mini-report-row {
   padding: 6px 0;
-  border-top: 1px solid #eef2f7;
+  border-top: 1px solid var(--line-soft);
 }
 
 .mini-report-row:first-of-type {
@@ -1594,14 +1594,14 @@
 }
 
 .mini-report-row strong {
-  font-size: 9.5px;
+  font-size: 12px;
   font-weight: 500;
   color: var(--ink-soft);
 }
 
 .mini-report-row span {
   color: var(--muted-light);
-  font-size: 8.5px;
+  font-size: 12px;
 }
 
 .suggestions-card {
@@ -1634,13 +1634,13 @@
   background: #fff;
   border: 1px solid #fde8c8;
   color: #b45309;
-  font-size: 8.5px;
+  font-size: 12px;
   font-weight: 700;
 }
 
 .suggestion-list p {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.7;
 }
 
@@ -1661,7 +1661,7 @@
 .report-narrative-card p {
   margin-top: 5px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.7;
 }
 
@@ -1673,7 +1673,7 @@
   padding-top: 8px;
   border-top: 1px solid var(--line);
   color: var(--muted-light);
-  font-size: 8px;
+  font-size: 12px;
 }
 
 .report-generated .icon {
@@ -1690,7 +1690,7 @@
   align-items: flex-start;
   gap: 4px;
   color: var(--muted-light);
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.65;
 }
 
@@ -1705,7 +1705,7 @@
   margin-top: 9px;
 }
 
-/* ── Responsive study tools ──────────────────────────────────────── */
+/* 鈹€鈹€ Responsive study tools 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€ */
 @media (max-width: 1180px) {
   .focus-layout {
     grid-template-columns: 1fr;
@@ -1850,7 +1850,7 @@
   .timer-finish {
     min-width: 0;
     flex: 1;
-    font-size: 10px;
+    font-size: 12px;
     padding-left: 8px;
     padding-right: 8px;
   }
@@ -1873,11 +1873,11 @@
   }
 
   .back-content {
-    font-size: 12.5px;
+    font-size: 13px;
   }
 
   .rating-button strong {
-    font-size: 9px;
+    font-size: 12px;
   }
 
   .rating-button small {
@@ -1990,7 +1990,7 @@
   }
 
   .achievement-tile p {
-    font-size: 8.5px;
+    font-size: 12px;
   }
 
   .report-hero-tags {
@@ -1998,6 +1998,6 @@
   }
 
   .report-hero-tags > span {
-    font-size: 8.5px;
+    font-size: 12px;
   }
 }

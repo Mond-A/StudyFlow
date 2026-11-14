@@ -61,7 +61,6 @@ function renderPage(container) {
     <div class="page-shell report-page">
       <header class="page-header">
         <div class="page-heading">
-          <p class="eyebrow">REPORT · 每日学习报告</p>
           <h1>${escapeHTML(report.date_label)} · ${escapeHTML(report.weekday)}</h1>
           <p class="page-subtitle">${report.is_today ? "今天的学习轨迹还在继续。" : "回看已发生的学习，找到可以调整的节奏。"} 本报告由本地学习数据自动汇总。</p>
         </div>

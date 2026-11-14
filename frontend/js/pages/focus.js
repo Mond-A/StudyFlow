@@ -79,7 +79,6 @@ function renderPage(container) {
     <div class="page-shell">
       <header class="page-header">
         <div class="page-heading">
-          <p class="eyebrow">FOCUS · 专注时钟</p>
           <h1>一次只做一件事</h1>
           <p class="page-subtitle">用番茄钟建立专注节奏，完成后自动记录学习时长。离开页面会结束当前计时。</p>
         </div>

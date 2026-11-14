@@ -1,32 +1,17 @@
-# Python
-__pycache__/
-*.py[cod]
-.venv/
-venv/
-.pytest_cache/
-.coverage
-htmlcov/
-
-# Environment and local secrets
+# Environment secrets
 .env
 .env.*
 !.env.example
 
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
 # Local data
-data/*.db
-data/*.db-shm
-data/*.db-wal
-data/*.sqlite3
-data/uploads/*
-!data/uploads/.gitkeep
-
-# Temporary tooling / editor files
+data/
+# Temporary audit/test artifacts
 .tmp/
-*.log
-.DS_Store
-Thumbs.db
-.idea/
-.vscode/
-
-# Node tooling (not required to run the MVP)
+.pytest_cache/
 node_modules/

@@ -135,7 +135,6 @@ function renderPage(container) {
     <div class="page-shell">
       <header class="page-header">
         <div class="page-heading">
-          <p class="eyebrow">ERROR BOOK · 错题本</p>
           <h1>把错误变成下一次的得分点</h1>
           <p class="page-subtitle">记录错题、正确答案和错因，按知识点归类并安排复习。重点不是抄题，而是弄清楚为什么错。</p>
         </div>

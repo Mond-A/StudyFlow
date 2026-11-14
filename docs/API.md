@@ -74,6 +74,8 @@ AI 接口额外在顶层返回 `ai`：
 | --- | --- | --- |
 | 400 | `VALIDATION_ERROR` | 参数校验失败 |
 | 400 | `INVALID_IMAGE_URL` | 图片地址不是本地上传路径 |
+| 400 | `IMAGE_REQUIRED` | 视觉接口没有收到图片 |
+| 400 | `IMAGE_FORMAT_ERROR` | 图片不是合法的 Base64 data URL（禁止把文件路径当图片文本发送） |
 | 404 | `NOT_FOUND` | 资源不存在 |
 | 413 | `FILE_TOO_LARGE` / `PAYLOAD_TOO_LARGE` | 文件或请求过大 |
 | 415 | `UNSUPPORTED_FILE_TYPE` | 文件不是 JPG/PNG/WebP |
@@ -82,6 +84,7 @@ AI 接口额外在顶层返回 `ai`：
 | 502 | `AI_AUTH_ERROR` | AI API Key 无效或无权限 |
 | 502 | `AI_REQUEST_REJECTED` | 模型名称/接口地址/请求被拒绝 |
 | 503 | `AI_NOT_CONFIGURED` | 严格模式下未配置 AI Key |
+| 503 | `AI_CONFIG_ERROR` | 已配置 Key，但缺少 `AI_VISION_BASE_URL` 等必要设置；不会发起外部请求 |
 | 503 | `AI_RATE_LIMIT` | 上游 AI 限流或额度不足 |
 
 ### 日期与时间
@@ -564,7 +567,33 @@ Query：`subject`、`range`。
 
 ### `GET /api/ai/status`
 
-返回文本/视觉能力配置状态（不会返回 Key）。
+返回文本/视觉能力配置状态。不会返回 Key，也不会返回完整 Base URL。
+
+```json
+{
+  "policy": "auto",
+  "text": {
+    "configured": true,
+    "config_complete": true,
+    "missing_env": [],
+    "provider": "deepseek",
+    "model": "deepseek-chat",
+    "base_url_configured": true,
+    "effective_mode": "live"
+  },
+  "vision": {
+    "configured": true,
+    "config_complete": true,
+    "missing_env": [],
+    "provider": "qwen",
+    "model": "qwen3.8-flash",
+    "base_url_configured": true,
+    "effective_mode": "live"
+  }
+}
+```
+
+`missing_env` 会列出缺失的变量名，例如 `AI_VISION_API_KEY`、`AI_VISION_BASE_URL`。如果已配置 Key 但缺少 Base URL，视觉能力为 `unavailable`，实际请求会返回 `503 AI_CONFIG_ERROR`，不会偷偷切换到演示或使用硬编码地址。
 
 ### 视觉/结构化接口
 
@@ -572,6 +601,8 @@ Query：`subject`、`range`。
 | --- | --- | --- |
 | POST | `/api/ai/tasks/recognize` | `image_url`、`subject_hint?`、`due_date?` |
 | POST | `/api/ai/notes/recognize` | `image_url`、`title_hint?` |
+
+这些接口的 `image_url` 必须是 `/api/uploads` 返回的本地上传地址。后端读取文件后，将 PNG/JPG/WebP 编码为 data URL，并以 OpenAI 兼容的 `image_url` 内容块发送给 Qwen；不会把文件路径作为普通文本发送。
 
 `tasks/recognize` 返回示例：
 
@@ -744,10 +775,29 @@ AI_TEXT_API_KEY=...
 AI_TEXT_BASE_URL=https://api.deepseek.com/v1
 AI_TEXT_MODEL=deepseek-chat
 
+AI_VISION_PROVIDER=qwen
 AI_VISION_API_KEY=...
 AI_VISION_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
-AI_VISION_MODEL=qwen-vl-max
+AI_VISION_MODEL=qwen3.8-flash
 AI_DEMO_MODE=auto
 ```
 
-修改 `.env` 后需重启 Flask。
+修改 `.env` 后需重启 Flask。`AI_VISION_BASE_URL` 必须由环境变量提供，后端没有硬编码默认地址；API Key 绝不能写进前端或提交到 Git。
+
+真实调用可通过可选的连通性脚本验证。脚本先检查 Qwen 端点/鉴权/模型，成功后才发送内嵌测试图片：
+
+```bash
+python scripts/test_ai_connection.py --capability vision
+python scripts/test_ai_connection.py --capability all
+```
+
+未配置 Key 时脚本返回 `2 (SKIPPED)`，不会发起请求或伪造成功。
+
+本次已使用真实 `.env` 凭据完成实测：
+
+- Qwen 请求/响应模型均为 `qwen3.8-flash`，纯文本连通性和 Base64 图片多模态输入均通过；
+- 应用级 `POST /api/ai/tasks/recognize` 返回 `ai.mode=live`，识别出作业任务；
+- DeepSeek 请求配置为 `deepseek-chat`，连通性通过，上游返回的响应模型为 `deepseek-flash`；
+- 应用级 `POST /api/ai/express/polish` 返回 `ai.mode=live`。
+
+测试没有打印、返回或提交任何 API Key。测试上传图片在验证后已删除。
