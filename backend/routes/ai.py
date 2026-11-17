@@ -30,11 +30,11 @@ def _demo_flag(data: dict) -> bool:
     return bool_field(data, "demo", False)
 
 
-def _image_data(data: dict) -> tuple[str, str] | tuple[None, None]:
+def _image_data(data: dict, user_id: int) -> tuple[str, str] | tuple[None, None]:
     image_url = text_field(data, "image_url", "图片地址", max_length=500)
     if not image_url:
         return None, None
-    return image_url, load_upload_data_url(image_url)
+    return image_url, load_upload_data_url(image_url, user_id)
 
 
 @bp.get("/ai/status")
@@ -46,7 +46,7 @@ def ai_status():
 @bp.post("/ai/tasks/recognize")
 def recognize_tasks():
     data = json_body()
-    image_url, image_data = _image_data(data)
+    image_url, image_data = _image_data(data, get_current_user_id())
     if not image_url:
         raise APIError(
             "请先上传作业图片", code="IMAGE_REQUIRED", status_code=400
@@ -67,7 +67,7 @@ def recognize_tasks():
 @bp.post("/ai/notes/recognize")
 def recognize_note():
     data = json_body()
-    image_url, image_data = _image_data(data)
+    image_url, image_data = _image_data(data, get_current_user_id())
     if not image_url:
         raise APIError(
             "请先上传笔记图片", code="IMAGE_REQUIRED", status_code=400
@@ -88,7 +88,9 @@ def review_essay():
     data = json_body()
     text = text_field(data, "text", "作文内容", max_length=30000)
     image_url = text_field(data, "image_url", "图片地址", max_length=500)
-    image_data = load_upload_data_url(image_url) if image_url else None
+    image_data = (
+        load_upload_data_url(image_url, get_current_user_id()) if image_url else None
+    )
     if not text and not image_data:
         raise APIError(
             "请输入作文文本或上传作文图片",

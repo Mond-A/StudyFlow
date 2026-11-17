@@ -48,6 +48,20 @@ export async function request(
     formData = false,
   } = {}
 ) {
+  if (window.__STUDYFLOW_GUEST__) {
+    try {
+      const { guestRequest } = await import("./guest-store.js");
+      return await guestRequest(path, { method, body, query, formData });
+    } catch (error) {
+      if (error && error.name === "GuestError") {
+        throw new ApiError(error.message, {
+          code: error.code || "GUEST_ERROR",
+          status: error.status || 0,
+        });
+      }
+      throw error;
+    }
+  }
   const url = buildUrl(path, query);
   const controller = new AbortController();
   let timedOut = false;

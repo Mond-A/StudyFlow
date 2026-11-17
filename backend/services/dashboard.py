@@ -190,7 +190,7 @@ def build_dashboard(user_id: int) -> dict:
         """
         SELECT s.*, t.title AS task_title
         FROM study_sessions s
-        LEFT JOIN tasks t ON t.id = s.task_id
+        LEFT JOIN tasks t ON t.id = s.task_id AND t.user_id = s.user_id
         WHERE s.user_id = ?
         ORDER BY s.started_at DESC LIMIT 5
         """,

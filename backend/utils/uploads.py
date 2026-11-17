@@ -11,6 +11,7 @@ from pathlib import Path
 from flask import current_app
 from PIL import Image, ImageOps, UnidentifiedImageError
 
+from ..db import execute, query_one
 from .exceptions import APIError
 
 ALLOWED_FORMATS = {
@@ -22,8 +23,12 @@ MAX_IMAGE_PIXELS = 25_000_000
 MAX_EDGE = 2400
 
 
-def save_image_upload(file_storage) -> dict:
-    """Validate a real image with Pillow, strip metadata and store it safely."""
+def save_image_upload(file_storage, user_id: int) -> dict:
+    """Validate a real image with Pillow, strip metadata and store it safely.
+
+    The file and its ownership row are committed together after the image has
+    been written. A failed registry insert removes the just-written file.
+    """
     if file_storage is None or not getattr(file_storage, "filename", ""):
         raise APIError("请选择要上传的图片", code="VALIDATION_ERROR", status_code=400)
 
@@ -102,6 +107,18 @@ def save_image_upload(file_storage) -> dict:
         ) from exc
 
     size_bytes = target.stat().st_size
+    try:
+        execute(
+            """
+            INSERT INTO uploads
+                (user_id, stored_filename, original_name, content_type, size_bytes, created_at)
+            VALUES (?, ?, ?, ?, ?, datetime('now'))
+            """,
+            (user_id, filename, original_name, mime, size_bytes),
+        )
+    except Exception:
+        target.unlink(missing_ok=True)
+        raise
     return {
         "filename": filename,
         "url": f"/uploads/{filename}",
@@ -113,8 +130,8 @@ def save_image_upload(file_storage) -> dict:
     }
 
 
-def resolve_uploaded_image(url_or_filename: str) -> Path:
-    """Only resolve files inside the configured upload directory (no SSRF)."""
+def resolve_uploaded_image(url_or_filename: str, user_id: int) -> Path:
+    """Resolve an owned upload inside the configured directory (no SSRF)."""
     if not isinstance(url_or_filename, str) or not url_or_filename.strip():
         raise APIError("请先上传图片", code="IMAGE_REQUIRED", status_code=400)
     value = url_or_filename.strip()
@@ -134,6 +151,13 @@ def resolve_uploaded_image(url_or_filename: str) -> Path:
         "webp",
     }:
         raise APIError("图片地址无效", code="INVALID_IMAGE_URL", status_code=400)
+    if not query_one(
+        "SELECT 1 FROM uploads WHERE stored_filename = ? AND user_id = ?",
+        (value, user_id),
+    ):
+        raise APIError(
+            "图片不存在，请重新上传", code="IMAGE_NOT_FOUND", status_code=404
+        )
     upload_dir = Path(current_app.config["UPLOAD_DIR"]).resolve()
     path = (upload_dir / value).resolve()
     if upload_dir not in path.parents or not path.is_file():
@@ -145,8 +169,8 @@ def resolve_uploaded_image(url_or_filename: str) -> Path:
     return path
 
 
-def load_upload_data_url(url_or_filename: str) -> str:
-    path = resolve_uploaded_image(url_or_filename)
+def load_upload_data_url(url_or_filename: str, user_id: int) -> str:
+    path = resolve_uploaded_image(url_or_filename, user_id)
     extension = path.suffix.lower().lstrip(".")
     mime = {
         "jpg": "image/jpeg",

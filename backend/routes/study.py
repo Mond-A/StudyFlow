@@ -136,7 +136,7 @@ def list_sessions():
         f"""
         SELECT s.*, t.title AS task_title
         FROM study_sessions s
-        LEFT JOIN tasks t ON t.id = s.task_id
+        LEFT JOIN tasks t ON t.id = s.task_id AND t.user_id = s.user_id
         WHERE {' AND '.join(conditions)}
         ORDER BY s.started_at DESC LIMIT ?
         """,
@@ -227,9 +227,10 @@ def create_session():
     row = query_one(
         """
         SELECT s.*, t.title AS task_title FROM study_sessions s
-        LEFT JOIN tasks t ON t.id = s.task_id WHERE s.id = ?
+        LEFT JOIN tasks t ON t.id = s.task_id AND t.user_id = s.user_id
+        WHERE s.id = ? AND s.user_id = ?
         """,
-        (cursor.lastrowid,),
+        (cursor.lastrowid, user_id),
     )
     return success(
         {"session": serialize_session(row), "unlocked_achievements": unlocked},

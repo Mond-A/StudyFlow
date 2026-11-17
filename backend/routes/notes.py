@@ -28,8 +28,8 @@ def _get_note_or_404(user_id: int, note_id: int):
     return row
 
 
-def _source_image_value(value: str) -> str | None:
-    """Only allow local upload URLs so the preview link cannot become XSS."""
+def _source_image_value(value: str, user_id: int) -> str | None:
+    """Allow only a local upload URL owned by the current account."""
     if not value:
         return None
     if not re.fullmatch(r"/uploads/[a-f0-9]{32}\.(?:jpg|png|webp)", value):
@@ -37,6 +37,17 @@ def _source_image_value(value: str) -> str | None:
             "来源图片必须是本地上传接口返回的 /uploads/ 地址",
             code="INVALID_SOURCE_IMAGE",
             status_code=400,
+        )
+    filename = value.removeprefix("/uploads/")
+    owned = query_one(
+        "SELECT 1 FROM uploads WHERE stored_filename = ? AND user_id = ?",
+        (filename, user_id),
+    )
+    if owned is None:
+        raise APIError(
+            "来源图片不存在或无权访问",
+            code="UPLOAD_NOT_FOUND",
+            status_code=404,
         )
     return value
 
@@ -83,7 +94,7 @@ def create_note():
     subject = text_field(data, "subject", "学科", default="综合", max_length=30) or "综合"
     content = text_field(data, "content_markdown", "笔记内容", max_length=200000)
     source_image = _source_image_value(
-        text_field(data, "source_image", "来源图片", max_length=500)
+        text_field(data, "source_image", "来源图片", max_length=500), user_id
     )
     timestamp = now_iso()
     cursor = execute(
@@ -122,7 +133,7 @@ def update_note(note_id: int):
         )
     if "source_image" in data:
         fields["source_image"] = _source_image_value(
-            text_field(data, "source_image", "来源图片", max_length=500)
+            text_field(data, "source_image", "来源图片", max_length=500), user_id
         )
     if not fields:
         return success(serialize_note(existing), message="没有需要更新的字段")

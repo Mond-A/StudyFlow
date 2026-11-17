@@ -42,6 +42,8 @@ function navGroup(group) {
 }
 
 export function mountLayout(root) {
+  const guest = Boolean(window.__STUDYFLOW_GUEST__);
+  const switched = Boolean(window.__STUDYFLOW_GUEST_SWITCHED__);
   root.innerHTML = `
     <a class="skip-link" href="#page-content">跳到主要内容</a>
     <div class="app-shell">
@@ -72,16 +74,16 @@ export function mountLayout(root) {
             <span class="nav-icon">${icon("settings")}</span><span>设置</span>
           </a>
           <a class="sidebar-user" href="#/settings" data-route="settings" aria-label="打开个人设置">
-            <span class="avatar js-user-avatar">同学</span>
+            <span class="avatar js-user-avatar">${guest ? "访" : "同学"}</span>
             <span class="sidebar-user-copy">
-              <strong class="js-user-name">同学</strong>
-              <span class="js-user-subtitle">本地学习空间</span>
+              <strong class="js-user-name">${guest ? "访客同学" : "同学"}</strong>
+              <span class="js-user-subtitle">${guest ? "访客模式 · 仅当前设备" : "本地学习空间"}</span>
             </span>
             ${icon("chevron-right", "sidebar-user-arrow")}
           </a>
           <button class="nav-item sidebar-logout" id="logout-button" type="button">
             <span class="nav-icon">${icon("log-out")}</span>
-            <span>退出登录</span>
+            <span>${guest ? "退出访客模式" : "退出登录"}</span>
           </button>
           <p class="sidebar-version"><span class="js-app-version">StudyFlow</span> · 本地版</p>
         </div>
@@ -101,6 +103,13 @@ export function mountLayout(root) {
           <span class="mobile-ai js-mobile-ai" data-state="loading">${icon("bot")}<span>检查中</span></span>
         </header>
 
+        ${guest ? `<div class="guest-banner" role="status">
+          <div><strong>${switched ? "已退出正式账户，进入访客模式" : "访客模式"}</strong><span>数据只保存在当前浏览器，不会自动上传。清除浏览器数据或更换设备可能丢失。</span></div>
+          <div class="guest-banner-actions">
+            <a class="guest-banner-link" href="/login">登录正式账户以使用智能工具并备份</a>
+            <button type="button" class="guest-clear-button" data-guest-clear>清除本地访客数据</button>
+          </div>
+        </div>` : ""}
         <main id="page-content" class="page-content" tabindex="-1"></main>
 
         <footer class="app-footer">
@@ -122,9 +131,24 @@ function bindShell(root) {
   const closeButton = root.querySelector("#sidebar-close");
   const logoutButton = root.querySelector("#logout-button");
 
+  root.querySelector("[data-guest-clear]")?.addEventListener("click", async () => {
+    if (!window.confirm("清除当前设备上的全部访客数据？此操作不可撤销，正式账户数据不会受影响。")) return;
+    try {
+      const { clearGuestData } = await import("../guest-store.js");
+      await clearGuestData();
+      window.location.reload();
+    } catch (_) {
+      window.alert("清除失败，请稍后重试。");
+    }
+  });
+
   logoutButton?.addEventListener("click", async () => {
     if (logoutButton.disabled) return;
     logoutButton.disabled = true;
+    if (window.__STUDYFLOW_GUEST__) {
+      window.location.assign("/login");
+      return;
+    }
     try {
       await fetch("/api/auth/logout", {
         method: "POST",
@@ -199,7 +223,12 @@ export function applyMeta(meta) {
     if (user.avatar_color) node.style.background = user.avatar_color;
   });
   const subtitle = document.querySelector(".js-user-subtitle");
-  if (subtitle) subtitle.textContent = "本地学习空间";
+  if (subtitle) {
+    subtitle.textContent = window.__STUDYFLOW_GUEST__
+      ? "访客模式 · 仅当前设备"
+      : (meta.account?.email || "本地学习空间");
+    if (!window.__STUDYFLOW_GUEST__ && meta.account?.email) subtitle.title = meta.account.email;
+  }
   const version = document.querySelector(".js-app-version");
   if (version && meta.app) version.textContent = `${meta.app.name} ${meta.app.version.split("-")[0]}`;
 

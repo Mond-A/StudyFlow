@@ -5,7 +5,15 @@ from __future__ import annotations
 import json
 from datetime import date, datetime, time, timedelta
 
-from ..db import get_current_user, get_current_user_id, get_db, get_meta, set_meta
+from flask import has_request_context, session
+
+from ..db import (
+    get_current_user_id,
+    get_db,
+    get_meta,
+    query_one,
+    set_meta,
+)
 from ..utils.timeutils import get_timezone, now_iso, now_local, today_iso
 from .constants import ACHIEVEMENT_DEFS
 
@@ -137,26 +145,57 @@ def _track(conn, user_id: int, table: str, record_id: int, timestamp: str) -> No
     )
 
 
-def demo_summary() -> dict:
+def _demo_user_id() -> int | None:
+    """Use the request user; during first-run startup use the legacy profile."""
+    if has_request_context():
+        user_id = session.get("user_id")
+        if isinstance(user_id, int) and user_id > 0:
+            return user_id
+    row = query_one(
+        "SELECT id FROM users WHERE username = 'student' ORDER BY id LIMIT 1"
+    )
+    return int(row["id"]) if row else None
+
+
+def _seed_key(user_id: int) -> str:
+    return f"{DEMO_SEED_KEY}:{user_id}"
+
+
+def _cleared_key(user_id: int) -> str:
+    return f"{DEMO_CLEARED_KEY}:{user_id}"
+
+
+def demo_summary(user_id: int | None = None) -> dict:
+    user_id = user_id or _demo_user_id()
+    if user_id is None:
+        return {"loaded": False, "counts": {}, "total_records": 0, "seeded_at": None}
     conn = get_db()
     rows = conn.execute(
-        "SELECT table_name, COUNT(*) AS count FROM demo_records GROUP BY table_name"
+        "SELECT table_name, COUNT(*) AS count FROM demo_records WHERE user_id = ? GROUP BY table_name",
+        (user_id,),
     ).fetchall()
     counts = {row["table_name"]: row["count"] for row in rows}
+    seeded_at = get_meta(_seed_key(user_id))
+    if seeded_at is None and user_id == 1:
+        # Compatibility with data produced by the pre-multi-user single-admin app.
+        seeded_at = get_meta(DEMO_SEED_KEY)
     return {
         "loaded": bool(counts),
         "counts": counts,
         "total_records": sum(counts.values()),
-        "seeded_at": get_meta(DEMO_SEED_KEY),
+        "seeded_at": seeded_at,
     }
 
 
 def seed_demo_data(*, force: bool = False) -> dict:
-    """Insert demo data once, unless force=True is used from Settings."""
-    existing = demo_summary()
+    """Insert demo data once for the current account."""
+    user_id = _demo_user_id()
+    if user_id is None:
+        return {"loaded": False, "created": 0, "counts": {}, "message": "没有可用的账户。"}
+    existing = demo_summary(user_id)
     if existing["loaded"]:
         return {**existing, "already_loaded": True, "created": 0}
-    if get_meta(DEMO_SEED_KEY) and not force:
+    if (get_meta(_seed_key(user_id)) or (user_id == 1 and get_meta(DEMO_SEED_KEY))) and not force:
         return {
             "loaded": False,
             "already_cleared": True,
@@ -165,8 +204,9 @@ def seed_demo_data(*, force: bool = False) -> dict:
             "message": "演示数据曾被清除，不会在重启时自动重建。",
         }
 
-    user = get_current_user()
-    user_id = int(user["id"])
+    user = query_one("SELECT * FROM users WHERE id = ?", (user_id,))
+    if user is None:
+        return {"loaded": False, "created": 0, "counts": {}, "message": "没有可用的账户。"}
     conn = get_db()
     now = now_local()
     today = now.date()
@@ -535,7 +575,7 @@ def seed_demo_data(*, force: bool = False) -> dict:
             INSERT INTO app_meta (key, value, updated_at) VALUES (?, ?, ?)
             ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
             """,
-            (DEMO_SEED_KEY, timestamp, timestamp),
+            (_seed_key(user_id), timestamp, timestamp),
         )
         conn.commit()
     except Exception:
@@ -563,8 +603,10 @@ DEMO_TABLES_DELETE_ORDER = [
 
 def clear_demo_data() -> dict:
     conn = get_db()
+    user_id = get_current_user_id()
     rows = conn.execute(
-        "SELECT table_name, record_id FROM demo_records ORDER BY id DESC"
+        "SELECT table_name, record_id FROM demo_records WHERE user_id = ? ORDER BY id DESC",
+        (user_id,),
     ).fetchall()
     if not rows:
         return {"cleared": 0, "counts": {}, "message": "当前没有可清除的演示数据。"}
@@ -572,7 +614,6 @@ def clear_demo_data() -> dict:
     for row in rows:
         by_table.setdefault(row["table_name"], []).append(int(row["record_id"]))
     counts: dict[str, int] = {}
-    user_id = get_current_user_id()
     try:
         for table in DEMO_TABLES_DELETE_ORDER:
             ids = by_table.get(table, [])
@@ -580,11 +621,11 @@ def clear_demo_data() -> dict:
                 continue
             placeholders = ",".join("?" for _ in ids)
             cursor = conn.execute(
-                f"DELETE FROM {table} WHERE id IN ({placeholders})",  # table is whitelisted
-                ids,
+                f"DELETE FROM {table} WHERE id IN ({placeholders}) AND user_id = ?",  # table is whitelisted
+                (*ids, user_id),
             )
             counts[table] = cursor.rowcount
-        conn.execute("DELETE FROM demo_records")
+        conn.execute("DELETE FROM demo_records WHERE user_id = ?", (user_id,))
         # Some achievements may have auto-unlocked while exploring demo data and
         # therefore aren't individually tracked. Recompute from the remaining
         # (real) data after clearing, so demo-only unlocks don't linger.
@@ -595,7 +636,7 @@ def clear_demo_data() -> dict:
             INSERT INTO app_meta (key, value, updated_at) VALUES (?, ?, ?)
             ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
             """,
-            (DEMO_CLEARED_KEY, now, now),
+            (_cleared_key(user_id), now, now),
         )
         conn.commit()
     except Exception:

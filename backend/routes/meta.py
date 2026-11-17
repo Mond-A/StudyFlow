@@ -8,6 +8,7 @@ from datetime import datetime
 
 from flask import Blueprint, Response
 
+from ..accounts import account_for_user
 from ..config import Config
 from ..db import (
     execute,
@@ -62,9 +63,10 @@ def app_meta():
             },
             "server_time": now_iso(),
             "user": serialize_user(user),
+            "account": account_for_user(int(user["id"])),
             "subjects": SUBJECTS,
             "ai": ai_status,
-            "demo": demo_summary(),
+            "demo": demo_summary(int(user["id"])),
             "limits": {
                 "max_image_mb": 8,
                 "supported_image_types": ["JPG", "PNG", "WebP"],
@@ -81,7 +83,7 @@ def get_settings():
         {
             "user": serialize_user(user),
             "ai": AIService.from_app().status(),
-            "demo": demo_summary(),
+            "demo": demo_summary(int(user["id"])),
             "subjects": SUBJECTS,
         }
     )
@@ -144,7 +146,7 @@ def update_settings():
 
 @bp.get("/demo")
 def get_demo():
-    return success(demo_summary())
+    return success(demo_summary(get_current_user_id()))
 
 
 @bp.post("/demo/load")
@@ -190,7 +192,7 @@ def export_data():
             for row in query_all(
                 """
                 SELECT s.*, t.title AS task_title FROM study_sessions s
-                LEFT JOIN tasks t ON t.id = s.task_id
+                LEFT JOIN tasks t ON t.id = s.task_id AND t.user_id = s.user_id
                 WHERE s.user_id = ? ORDER BY s.started_at
                 """,
                 (user_id,),
@@ -210,7 +212,7 @@ def export_data():
             serialize_flashcard(row)
             for row in query_all("SELECT * FROM flashcards WHERE user_id = ?", (user_id,))
         ],
-        "demo": demo_summary(),
+        "demo": demo_summary(user_id),
     }
     filename = f"studyflow-export-{now_local().strftime('%Y%m%d-%H%M%S')}.json"
     body = json.dumps(payload, ensure_ascii=False, indent=2)

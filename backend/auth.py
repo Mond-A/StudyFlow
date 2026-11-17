@@ -1,8 +1,8 @@
-"""Single-admin session authentication for StudyFlow.
+"""Session authentication for StudyFlow.
 
-The application intentionally has no user registration or accounts. One
-password hash is configured in ``STUDYFLOW_PASSWORD_HASH`` and every page/API
-except the login/logout endpoints requires an authenticated Flask session.
+Email accounts are the primary identity. A legacy single-admin password login
+remains available only while no email account exists, which keeps an existing
+deployment usable until the explicit account migration is applied.
 """
 
 from __future__ import annotations
@@ -18,14 +18,27 @@ from urllib.parse import urlsplit
 from flask import Flask, current_app, redirect, request, send_from_directory, session, url_for
 from werkzeug.security import check_password_hash
 
+from .accounts import (
+    authenticate,
+    register_account,
+    resend_verification,
+    verify_email_token,
+)
+from .db import query_one
+from .utils.exceptions import APIError
 from .utils.responses import failure, success
 
 _PUBLIC_STATIC_PREFIXES = ("/css/", "/js/", "/vendor/", "/assets/")
 _PUBLIC_EXACT_PATHS = {
     "/login",
     "/logout",
+    "/guest",
+    "/verify-email",
     "/api/auth/login",
     "/api/auth/logout",
+    "/api/auth/register",
+    "/api/auth/resend-verification",
+    "/api/auth/verify-email",
     "/favicon.ico",
 }
 _SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
@@ -37,6 +50,8 @@ _WEAK_SECRETS = {
     "secret",
 }
 _SESSION_KEY = "authenticated"
+_SESSION_USER_KEY = "user_id"
+_SESSION_ACCOUNT_KEY = "account_id"
 _AUTH_TIME_KEY = "auth_at"
 _AUTH_NONCE_KEY = "auth_nonce"
 
@@ -160,14 +175,23 @@ def _expired() -> bool:
 
 
 def _session_valid() -> bool:
-    return session.get(_SESSION_KEY) is True and not _expired()
+    user_id = session.get(_SESSION_USER_KEY)
+    return (
+        session.get(_SESSION_KEY) is True
+        and isinstance(user_id, int)
+        and user_id > 0
+        and not _expired()
+    )
 
 
-def _establish_session() -> None:
+def _establish_session(user_id: int, account_id: int | None = None) -> None:
     # Clear first so pre-login session values cannot survive authentication.
     session.clear()
     session.permanent = True
     session[_SESSION_KEY] = True
+    session[_SESSION_USER_KEY] = int(user_id)
+    if account_id is not None:
+        session[_SESSION_ACCOUNT_KEY] = int(account_id)
     session[_AUTH_TIME_KEY] = int(time.time())
     session[_AUTH_NONCE_KEY] = secrets.token_urlsafe(24)
     session.modified = True
@@ -214,13 +238,21 @@ def _locked_response(retry_after: int):
     return response
 
 
-def _attempt(password: str) -> tuple[bool, int]:
-    """Return (ok, retry_after). Never reveals whether config/hash is absent."""
+def _legacy_allowed() -> bool:
+    """The old password login is only a pre-migration bridge."""
+    row = query_one("SELECT COUNT(*) AS count FROM auth_accounts")
+    return bool(row and int(row["count"]) == 0)
+
+
+def _legacy_attempt(password: str) -> tuple[bool, int]:
+    """Return (ok, retry_after) for the transitional admin login."""
     limiter = _limiter()
     key = _client_key()
     retry = limiter.retry_after(key)
     if retry:
         return False, retry
+    if not _legacy_allowed():
+        return False, 0
     stored = str(current_app.config.get("STUDYFLOW_PASSWORD_HASH") or "")
     try:
         valid = bool(stored) and check_password_hash(stored, password)
@@ -229,9 +261,39 @@ def _attempt(password: str) -> tuple[bool, int]:
     if not valid:
         limiter.record_failure(key)
         return False, 0
+    user = query_one("SELECT id FROM users WHERE username = 'student' ORDER BY id LIMIT 1")
+    if user is None:
+        limiter.record_failure(key)
+        return False, 0
     limiter.clear(key)
-    _establish_session()
+    _establish_session(int(user["id"]))
     return True, 0
+
+
+def _email_attempt(email: str, password: str) -> tuple[dict | None, int]:
+    limiter = _limiter()
+    key = f"{_client_key()}|email|{email.lower()}"
+    retry = limiter.retry_after(key)
+    if retry:
+        return None, retry
+    try:
+        account = authenticate(email, password)
+    except APIError as error:
+        if error.code == "INVALID_CREDENTIALS":
+            limiter.record_failure(key)
+        raise
+    limiter.clear(key)
+    _establish_session(account["user_id"], account["account_id"])
+    return account, 0
+
+
+def _api_error(error: APIError):
+    return failure(
+        error.message,
+        code=error.code,
+        status=error.status_code,
+        details=error.details,
+    )
 
 
 def _validate_security_config(app: Flask) -> None:
@@ -294,17 +356,21 @@ def init_auth(app: Flask) -> None:
         origin_failure = _check_origin_for_unsafe()
         if origin_failure is not None:
             return origin_failure
+        email = str(request.form.get("email", "")).strip()
         password = request.form.get("password", "")
         next_path = _safe_next(request.form.get("next"))
-        ok, retry = _attempt(password)
+        if email:
+            try:
+                _email_attempt(email, password)
+            except APIError as error:
+                code = "unverified" if error.code == "EMAIL_NOT_VERIFIED" else "invalid"
+                return redirect(url_for("login_page", error=code, next=next_path))
+            return redirect(next_path)
+        ok, retry = _legacy_attempt(password)
         if retry:
-            return redirect(
-                url_for("login_page", error="rate", next=next_path)
-            )
+            return redirect(url_for("login_page", error="rate", next=next_path))
         if not ok:
-            return redirect(
-                url_for("login_page", error="invalid", next=next_path)
-            )
+            return redirect(url_for("login_page", error="invalid", next=next_path))
         return redirect(next_path)
 
     @app.post("/logout")
@@ -321,9 +387,24 @@ def init_auth(app: Flask) -> None:
         if not isinstance(payload, dict):
             return failure("请求必须使用 JSON。", code="INVALID_REQUEST", status=400)
         password = payload.get("password")
+        email = str(payload.get("email", "")).strip()
         if not isinstance(password, str) or not password:
-            return failure("请输入管理员密码。", code="VALIDATION_ERROR", status=400)
-        ok, retry = _attempt(password)
+            return failure("请输入密码。", code="VALIDATION_ERROR", status=400)
+        if email:
+            try:
+                account, retry = _email_attempt(email, password)
+            except APIError as error:
+                return _api_error(error)
+            if retry:
+                return _locked_response(retry)
+            return success(
+                {
+                    "redirect": _safe_next(payload.get("next")),
+                    "email": account["email"],
+                },
+                message="登录成功",
+            )
+        ok, retry = _legacy_attempt(password)
         if retry:
             return _locked_response(retry)
         if not ok:
@@ -336,6 +417,65 @@ def init_auth(app: Flask) -> None:
             {"redirect": _safe_next(payload.get("next"))},
             message="登录成功",
         )
+
+    @app.post("/api/auth/register")
+    def api_register():
+        origin_failure = _check_origin_for_unsafe()
+        if origin_failure is not None:
+            return origin_failure
+        payload = request.get_json(silent=True)
+        if not isinstance(payload, dict):
+            return failure("请求必须使用 JSON。", code="INVALID_REQUEST", status=400)
+        try:
+            result = register_account(
+                payload.get("email"),
+                payload.get("password"),
+                payload.get("display_name", ""),
+            )
+        except APIError as error:
+            return _api_error(error)
+        return success(
+            result,
+            status=201,
+            message="账户已创建，请查收验证邮件。",
+        )
+
+    @app.post("/api/auth/resend-verification")
+    def api_resend_verification():
+        origin_failure = _check_origin_for_unsafe()
+        if origin_failure is not None:
+            return origin_failure
+        payload = request.get_json(silent=True)
+        if not isinstance(payload, dict):
+            return failure("请求必须使用 JSON。", code="INVALID_REQUEST", status=400)
+        try:
+            result = resend_verification(payload.get("email"))
+        except APIError as error:
+            return _api_error(error)
+        return success(result, message="如果该邮箱等待验证，验证邮件已发送。")
+
+    @app.post("/api/auth/verify-email")
+    def api_verify_email():
+        origin_failure = _check_origin_for_unsafe()
+        if origin_failure is not None:
+            return origin_failure
+        payload = request.get_json(silent=True)
+        if not isinstance(payload, dict):
+            return failure("请求必须使用 JSON。", code="INVALID_REQUEST", status=400)
+        try:
+            result = verify_email_token(payload.get("token"))
+        except APIError as error:
+            return _api_error(error)
+        return success(result, message="邮箱验证成功。")
+
+    @app.get("/verify-email")
+    def verify_email_page():
+        token = request.args.get("token", "")
+        try:
+            verify_email_token(token)
+        except APIError:
+            return redirect("/login?verified=0")
+        return redirect("/login?verified=1")
 
     @app.post("/api/auth/logout")
     def api_logout():

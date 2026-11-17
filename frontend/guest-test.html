@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>StudyFlow Guest Store Test</title>
+</head>
+<body>
+  <pre id="result">RUNNING</pre>
+  <script type="module">
+    const output = document.getElementById("result");
+    const mode = new URLSearchParams(location.search).get("mode") || "create";
+    try {
+      const guest = await import("./js/guest-store.js");
+      if (mode === "create") {
+        await guest.clearGuestData();
+        const created = await guest.guestRequest("/tasks", {
+          method: "POST",
+          body: { title: "guest-persistence-task", subject: "数学", estimated_minutes: 25 },
+        });
+        const dashboard = await guest.guestRequest("/dashboard");
+        const summary = await guest.guestImportSummary();
+        let aiCode = "";
+        try {
+          await guest.guestRequest("/ai/essay/review", { method: "POST", body: { text: "x" } });
+        } catch (error) {
+          aiCode = error.code;
+        }
+        if (!created.data?.id || summary.counts.tasks !== 1) throw new Error("create failed");
+        if (aiCode !== "GUEST_AI_DISABLED") throw new Error("AI boundary failed");
+        localStorage.setItem("studyflow.guest-test-id", String(created.data.id));
+        output.textContent = `PASS create tasks=${summary.counts.tasks} dashboard=${Boolean(dashboard.data?.stats)} ai=${aiCode}`;
+      } else {
+        const list = await guest.guestRequest("/tasks");
+        const id = Number(localStorage.getItem("studyflow.guest-test-id"));
+        if (!list.data.tasks.some((task) => task.id === id && task.title === "guest-persistence-task")) {
+          throw new Error("IndexedDB data did not survive reload");
+        }
+        const changed = await guest.guestRequest(`/tasks/${id}`, {
+          method: "PATCH",
+          body: { title: "guest-persistence-updated" },
+        });
+        if (changed.data.title !== "guest-persistence-updated") throw new Error("update failed");
+        const payload = await guest.guestImportPayload("browser-test-batch");
+        if (payload.data.tasks[0].local_uid !== undefined && !payload.data.tasks[0].local_uid) {
+          throw new Error("import payload missing local_uid");
+        }
+        const temporary = await guest.guestRequest("/tasks", {
+          method: "POST",
+          body: { title: "guest-delete-me", subject: "英语" },
+        });
+        await guest.guestRequest(`/tasks/${temporary.data.id}`, { method: "DELETE" });
+        const afterDelete = await guest.guestRequest("/tasks");
+        if (afterDelete.data.tasks.some((task) => task.id === temporary.data.id)) {
+          throw new Error("delete failed");
+        }
+        const dbs = indexedDB.databases ? await indexedDB.databases() : [];
+        const dbInfo = dbs.find((item) => item.name === "studyflow-guest");
+        if (dbInfo && dbInfo.version !== 1) throw new Error(`unexpected IndexedDB version ${dbInfo.version}`);
+        output.textContent = `PASS reload tasks=${list.data.tasks.length} update=${changed.data.title} version=${dbInfo?.version || "unknown"}`;
+      }
+    } catch (error) {
+      output.textContent = `FAIL ${error.name}: ${error.message}\n${error.stack || ""}`;
+    }
+  </script>
+</body>
+</html>

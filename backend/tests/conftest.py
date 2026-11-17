@@ -23,6 +23,7 @@ def authenticate_client(app):
         sess["authenticated"] = True
         sess["auth_at"] = int(time.time())
         sess["auth_nonce"] = "test-session"
+        sess["user_id"] = 1
         sess.permanent = True
     return client
 
@@ -46,6 +47,8 @@ def app_factory(tmp_path):
             "AI_TEXT_API_KEY": "",
             "AI_VISION_API_KEY": "",
             "TIMEZONE": "Asia/Shanghai",
+            "MAIL_BACKEND": "console",
+            "PUBLIC_BASE_URL": "http://127.0.0.1:5000",
         }
         config.update(overrides)
         return create_app(config)

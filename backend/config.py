@@ -56,6 +56,20 @@ class Config:
     LOGIN_WINDOW_SECONDS = max(60, min(_env_int("LOGIN_WINDOW_SECONDS", 900), 86400))
     TRUST_PROXY = _env_bool("TRUST_PROXY", False)
 
+    # Iteration 1 email accounts. Console is for local development only; a
+    # deployment must set MAIL_BACKEND=smtp and the SMTP values explicitly.
+    MAIL_BACKEND = os.getenv("MAIL_BACKEND", "console").strip().lower() or "console"
+    MAIL_FROM = os.getenv("MAIL_FROM", "StudyFlow <no-reply@localhost>").strip()
+    PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", "http://127.0.0.1:5000").strip().rstrip("/")
+    SMTP_HOST = os.getenv("SMTP_HOST", "").strip()
+    SMTP_PORT = max(1, _env_int("SMTP_PORT", 587))
+    SMTP_USERNAME = os.getenv("SMTP_USERNAME", "").strip()
+    SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
+    SMTP_USE_TLS = _env_bool("SMTP_USE_TLS", True)
+    SMTP_USE_SSL = _env_bool("SMTP_USE_SSL", False)
+    EMAIL_VERIFICATION_HOURS = max(1, min(_env_int("EMAIL_VERIFICATION_HOURS", 24), 168))
+    PASSWORD_MIN_LENGTH = max(10, min(_env_int("PASSWORD_MIN_LENGTH", 12), 64))
+
     FRONTEND_DIR = PROJECT_ROOT / "frontend"
     DATABASE_PATH = _resolve_path(os.getenv("DATABASE_PATH", ""), "data/studyflow.db")
     UPLOAD_DIR = _resolve_path(os.getenv("UPLOAD_DIR", ""), "data/uploads")

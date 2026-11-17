@@ -8,20 +8,23 @@ front-end/back-end split without requiring a Node build step.
 from __future__ import annotations
 
 import logging
+import secrets
 from pathlib import Path
 
-from flask import Flask, abort, current_app, send_from_directory
+from flask import Flask, Response, abort, current_app, request, send_from_directory, session
 from flask_cors import CORS
+from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from .auth import init_auth
 from .config import Config
-from .db import close_db, init_schema, query_one
+from .db import close_db, get_current_user_id, init_schema, query_one
 from .routes.ai import bp as ai_bp
 from .routes.dashboard import bp as dashboard_bp
 from .routes.errors import bp as errors_bp
 from .routes.flashcards import bp as flashcards_bp
 from .routes.grades import bp as grades_bp
+from .routes.guest_import import bp as guest_import_bp
 from .routes.meta import bp as meta_bp
 from .routes.notes import bp as notes_bp
 from .routes.reports import bp as reports_bp
@@ -38,6 +41,7 @@ def _register_blueprints(app: Flask) -> None:
         dashboard_bp,
         tasks_bp,
         grades_bp,
+        guest_import_bp,
         notes_bp,
         ai_bp,
         uploads_bp,
@@ -125,11 +129,74 @@ def create_app(test_config: dict | None = None) -> Flask:
         response.headers["Cache-Control"] = "no-cache"
         return response
 
+    guest_switch_serializer = URLSafeTimedSerializer(
+        app.config["SECRET_KEY"],
+        salt="studyflow-guest-switch",
+    )
+
+    def _guest_switch_token() -> str:
+        # Stateless token: GET does not need to write a CSRF value into Session.
+        return guest_switch_serializer.dumps({"nonce": secrets.token_urlsafe(16)})
+
+    def _guest_app_response(switched: bool) -> Response:
+        frontend = Path(app.config["FRONTEND_DIR"])
+        source = frontend / "index.html"
+        if not source.is_file():
+            abort(404)
+        html = source.read_text(encoding="utf-8")
+        bootstrap = (
+            "<script>window.__STUDYFLOW_GUEST__ = true;"
+            + ("window.__STUDYFLOW_GUEST_SWITCHED__ = true;" if switched else "")
+            + "</script>\n</head>"
+        )
+        html = html.replace("</head>", bootstrap, 1)
+        response = Response(html, mimetype="text/html")
+        response.headers["Cache-Control"] = "no-store"
+        return response
+
+    @app.get("/guest")
+    def guest_switch_page():
+        """Show a no-side-effect confirmation page for guest mode."""
+        frontend = Path(app.config["FRONTEND_DIR"])
+        source = frontend / "guest-switch.html"
+        if not source.is_file():
+            abort(404)
+        html = source.read_text(encoding="utf-8")
+        html = html.replace("__GUEST_SWITCH_TOKEN__", _guest_switch_token())
+        html = html.replace(
+            "__GUEST_SWITCH_ACCOUNT_NOTE__",
+            "进入访客模式会退出当前正式账户。" if session.get("authenticated") is True else "当前没有正式账户登录。",
+        )
+        response = Response(html, mimetype="text/html")
+        response.headers["Cache-Control"] = "no-store"
+        return response
+
+    @app.post("/guest")
+    def guest_switch_submit():
+        """Clear the formal session only after token and origin validation."""
+        try:
+            guest_switch_serializer.loads(
+                request.form.get("csrf_token", ""),
+                max_age=15 * 60,
+            )
+        except (BadSignature, SignatureExpired):
+            return Response("访客模式切换令牌无效或已过期。", status=403, mimetype="text/plain")
+        switched = session.get("authenticated") is True
+        session.clear()
+        session.modified = True
+        return _guest_app_response(switched)
+
     @app.get("/uploads/<path:filename>")
     def uploaded_file(filename: str):
         upload_dir = Path(current_app.config["UPLOAD_DIR"])
         target = (upload_dir / filename).resolve()
         if upload_dir not in target.parents or not target.is_file():
+            abort(404)
+        owned = query_one(
+            "SELECT 1 FROM uploads WHERE stored_filename = ? AND user_id = ?",
+            (filename, get_current_user_id()),
+        )
+        if owned is None:
             abort(404)
         response = send_from_directory(upload_dir, filename)
         response.headers["Cache-Control"] = "private, max-age=3600"

@@ -6,7 +6,7 @@ import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
 
-from flask import current_app, g
+from flask import current_app, g, session
 
 from .utils.timeutils import now_iso
 
@@ -96,8 +96,20 @@ def ensure_default_user(conn: sqlite3.Connection) -> sqlite3.Row:
 
 
 def get_current_user() -> sqlite3.Row:
+    """Resolve the user exclusively from the authenticated session.
+
+    The old implementation always returned the default user, which made every
+    authenticated request share one data namespace. A missing/mismatched user
+    is an authentication error, never a reason to fall back to user 1.
+    """
     if "current_user" not in g:
-        g.current_user = ensure_default_user(get_db())
+        user_id = session.get("user_id")
+        if not isinstance(user_id, int) or user_id <= 0:
+            raise RuntimeError("Authenticated session has no valid user_id")
+        row = query_one("SELECT * FROM users WHERE id = ?", (user_id,))
+        if row is None:
+            raise RuntimeError("Authenticated session references a missing user")
+        g.current_user = row
     return g.current_user
 
 

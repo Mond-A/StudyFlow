@@ -174,7 +174,10 @@ def create_task():
             timestamp,
         ),
     )
-    task = query_one("SELECT * FROM tasks WHERE id = ?", (cursor.lastrowid,))
+    task = query_one(
+        "SELECT * FROM tasks WHERE id = ? AND user_id = ?",
+        (cursor.lastrowid, user_id),
+    )
     return success(serialize_task(task), status=201, message="任务已创建")
 
 
