@@ -1,6 +1,7 @@
 # StudyFlow REST API
 
-版本：`0.7.0-mvp`  
+版本：`1.1.0`
+
 API 前缀：`/api`  
 默认服务地址：`http://127.0.0.1:5000`
 
@@ -273,7 +274,7 @@ AI 接口额外在顶层返回 `ai`：
 需要登录的健康检查。
 
 ```json
-{"ok":true,"data":{"status":"ok","app":"StudyFlow","version":"0.7.0-mvp","server_time":"..."}}
+{"ok":true,"data":{"status":"ok","app":"StudyFlow","version":"1.1.0","server_time":"..."}}
 ```
 
 ### `GET /api/health/db`

@@ -248,7 +248,7 @@ function renderPage(container) {
   const ai = settingsData.ai || {};
   const demo = settingsData.demo || {};
   const meta = getMeta();
-  const version = meta?.app?.version?.split("-")[0] || "0.7.0";
+  const version = meta?.app?.version?.split("-")[0] || "1.1.0";
   const counts = demo.counts || {};
   const totalDemo = demo.total_records || 0;
   const textLive = ai.text?.effective_mode === "live";

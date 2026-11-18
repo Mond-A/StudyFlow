@@ -10,7 +10,7 @@ latest code on the `main` branch only.
 | `main` (latest) | Best-effort fixes |
 | Older commits, forks, and feature branches | Not supported |
 
-The application currently reports the version `0.7.0-mvp`. This is not an LTS
+The application currently reports the version `1.1.0`. This is not an LTS
 release and no backport or fixed response-time commitment is made.
 
 ## Reporting a vulnerability

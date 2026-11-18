@@ -36,7 +36,7 @@ def _resolve_path(raw: str, default: str) -> Path:
 
 class Config:
     APP_NAME = "StudyFlow"
-    APP_VERSION = "0.7.0-mvp"
+    APP_VERSION = "1.1.0"
 
     # Authentication is mandatory. These deliberately have no usable default:
     # create_app() fails with a clear error until both are supplied.
