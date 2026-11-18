@@ -4,33 +4,156 @@
 API 前缀：`/api`  
 默认服务地址：`http://127.0.0.1:5000`
 
-StudyFlow 是单管理员应用；业务数据归属于 `users.id = 1`（`username = student`）。除登录/登出外，所有 `/api/*`、页面和 `/uploads/*` 都需要管理员 Session。未登录 API 返回 HTTP `401` JSON（`AUTH_REQUIRED`），不会返回 HTML 登录页。
+StudyFlow 是多用户邮箱账户应用。业务数据归属于当前登录 Session 对应的 `users.id`，每个用户只能访问自己的任务、成绩、笔记、学习记录、闪卡、错题、设置和上传文件。除明确的公开入口（登录、注册、邮箱验证、访客模式切换及相关静态资源）外，所有 `/api/*`、页面和 `/uploads/*` 都需要 Session。未登录 API 返回 HTTP `401` JSON（`AUTH_REQUIRED`），不会返回 HTML 登录页。
 
-## 0. 认证
+公开入口：`/login`、`/logout`、`/guest`、`/verify-email`、`/api/auth/*`、`/css/*`、`/js/*`、`/vendor/*`、`/assets/*`、`/favicon.ico`。`/api/health`、`/api/health/db` 和其他业务 API 也需要登录。
 
-### `POST /api/auth/login`
+## 0. 认证与访客模式
+
+### 认证模型
+
+- 登录标识是 `auth_accounts.email`；`users.email` 是资料邮箱，两者不是同一个字段。
+- 注册后账户处于未验证状态，必须通过邮件中的 token 验证后才能登录。
+- 登录成功后建立 Flask Session Cookie（`studyflow_session`，HttpOnly、可配置 SameSite 和 Secure）；默认 12 小时过期。业务查询只使用 Session 中的 `user_id`，不接受客户端传入的 `user_id`。
+- 注册/登录等写请求会校验同源 `Origin/Referer`；没有显式来源的非浏览器客户端仍依赖 Session Cookie。
+- 登录失败按来源 IP 与邮箱计数；计数存于 SQLite 的 `login_rate_limits`，多个 Gunicorn Worker 共享同一窗口。
+
+### `POST /api/auth/register`
 
 请求：
 
 ```json
-{"password": "管理员密码", "next": "/"}
+{
+  "email": "demo@example.invalid",
+  "password": "至少 12 个字符的密码",
+  "display_name": "示例同学"
+}
 ```
 
-成功响应会设置 `studyflow_session` Cookie（HttpOnly、SameSite=Lax，HTTPS 下可配置 Secure）：
+`display_name` 可省略；密码长度由 `PASSWORD_MIN_LENGTH` 控制（默认 12，最大 256）。邮箱会去空格并转为小写。
+
+成功：HTTP `201`
 
 ```json
-{"ok": true, "data": {"redirect": "/"}, "message": "登录成功"}
+{
+  "ok": true,
+  "data": {"email": "demo@example.invalid", "verification_required": true},
+  "message": "账户已创建，请查收验证邮件。"
+}
 ```
 
-- 错误密码：HTTP `401`，`INVALID_CREDENTIALS`
-- 频率限制：HTTP `429`，`LOGIN_RATE_LIMITED`，带 `Retry-After`
-- 缺少密码：HTTP `400`
+错误：
+
+| HTTP | code | 说明 |
+| --- | --- | --- |
+| 400 | `VALIDATION_ERROR` | 邮箱格式、密码过长等 |
+| 400 | `WEAK_PASSWORD` | 密码少于最小长度 |
+| 409 | `EMAIL_ALREADY_REGISTERED` | 邮箱已注册 |
+| 503 | `EMAIL_DELIVERY_FAILED` | 账户已创建但验证邮件发送失败；最多可稍后重发 |
+
+本地 `MAIL_BACKEND=console` 不会真的发邮件，而是把验证 URL 记录到本地 outbox/终端；生产必须配置 SMTP。
+
+### `POST /api/auth/login`
+
+邮箱登录：
+
+```json
+{"email": "demo@example.invalid", "password": "用户密码", "next": "/"}
+```
+
+成功响应会设置 `studyflow_session` Cookie：
+
+```json
+{
+  "ok": true,
+  "data": {"redirect": "/", "email": "demo@example.invalid"},
+  "message": "登录成功"
+}
+```
+
+`next` 只接受站内绝对路径，跨站或协议相对路径会被重置为 `/`。
+
+错误：
+
+| HTTP | code | 说明 |
+| --- | --- | --- |
+| 400 | `VALIDATION_ERROR` | 缺少密码等 |
+| 401 | `INVALID_CREDENTIALS` | 邮箱或密码错误 |
+| 403 | `EMAIL_NOT_VERIFIED` | 密码正确但邮箱尚未验证 |
+| 429 | `LOGIN_RATE_LIMITED` | 登录失败次数过多；带 `Retry-After` |
+
+**旧库过渡兼容**：仅当数据库里没有任何 `auth_accounts` 时，请求可以不传 `email`，用 `STUDYFLOW_PASSWORD_HASH` 对应的旧密码登录（请求体 `{"password": "..."}`）。一旦创建邮箱账户，这个入口不再生效。新用户不应使用该流程。
+
+### `POST /api/auth/resend-verification`
+
+```json
+{"email": "demo@example.invalid"}
+```
+
+对未知或已验证邮箱也会返回统一的 `{"email": "...", "sent": true}`，避免枚举账户；如果账户待验证但 SMTP 发送失败，返回 `503 EMAIL_DELIVERY_FAILED`。
+
+### `POST /api/auth/verify-email`
+
+```json
+{"token": "邮件中的验证 token"}
+```
+
+成功：
+
+```json
+{"ok": true, "data": {"email": "demo@example.invalid", "verified": true}}
+```
+
+错误：`INVALID_VERIFICATION_TOKEN`（400）、`VERIFICATION_TOKEN_EXPIRED`（410）。
+
+### `GET /verify-email?token=...`
+
+浏览器邮件链接入口。成功/失败都会重定向到 `/login?verified=1` 或 `/login?verified=0`，不返回 JSON。
 
 ### `POST /api/auth/logout`
 
-清除 Session，返回 `{"ok": true, "data": {"redirect": "/login"}}`。
+清除 Session：
 
-登录页面是公开的 `/login`；登录成功后才可访问 SPA 和业务 API。认证相关的环境变量见 [部署说明](DEPLOY_DEBIAN_ARM64.md)。
+```json
+{"ok": true, "data": {"redirect": "/login"}, "message": "已退出登录"}
+```
+
+页面表单 `POST /logout` 也清除 Session 并重定向到 `/login`。
+
+### `GET /guest`
+
+公开的访客模式确认页，不创建服务端 Session。页面包含一次性 CSRF token；只有同源 `POST /guest`（`application/x-www-form-urlencoded`，字段 `csrf_token`）且 token 有效时才清除正式 Session 并返回带 `window.__STUDYFLOW_GUEST__ = true` 的 SPA 入口。缺失/无效 token 或跨站来源返回 403。
+
+访客模式说明：
+
+- 业务数据只写入浏览器 IndexedDB（`studyflow-guest`），不会调用服务端业务 API。
+- 没有云端账户、跨设备同步或服务端备份；清除浏览器数据可能丢失。
+- AI 工具不可用；前端本地返回 `GUEST_AI_DISABLED`，直接请求服务端 AI 也会因无 Session 返回 401。
+- 访客模式不使用演示数据。
+- 登录正式账户后，前端会检测当前浏览器访客数据并弹出确认框；只有用户点击确认后才调用 `POST /api/guest/import`。
+
+### `POST /api/guest/import`
+
+需要正式登录 Session。用于把浏览器 IndexedDB 中的访客数据显式导入当前账户；服务端忽略客户端传入的 `user_id`，不会覆盖现有账户记录。
+
+```json
+{
+  "client_batch_id": "browser-generated-uuid",
+  "device_id": "browser-local-device-id",
+  "data": {
+    "tasks": [{"local_uid": "task-1", "title": "访客任务", "subject": "数学"}],
+    "grades": [],
+    "notes": [],
+    "study_sessions": [],
+    "flashcards": [],
+    "errors": []
+  }
+}
+```
+
+`client_batch_id` 为 1-80 位字母/数字/`.`/`_`/`:`/`-`；`data` 中每个实体最多 2000 条；每条记录必须有合法 `local_uid`。导入在单个数据库事务中完成，失败会整体回滚。按 `(user_id, client_batch_id)` 和 `(user_id, entity, local_uid)` 幂等，重复提交返回 `already_imported: true`。
+
+成功响应包含 `batch_id`、各实体 `imported/skipped` 计数、`total_imported`、`total_skipped` 和 `achievements_recomputed`。导入后本地访客数据仍保留，由用户自行决定是否清除。
 
 ---
 
@@ -99,13 +222,23 @@ AI 接口额外在顶层返回 `ai`：
 | HTTP | code | 说明 |
 | --- | --- | --- |
 | 400 | `VALIDATION_ERROR` | 参数校验失败 |
+| 400 | `WEAK_PASSWORD` | 密码长度不足 |
+| 400 | `INVALID_VERIFICATION_TOKEN` | 验证链接/token 无效 |
 | 400 | `INVALID_IMAGE_URL` | 图片地址不是本地上传路径 |
 | 400 | `IMAGE_REQUIRED` | 视觉接口没有收到图片 |
 | 400 | `IMAGE_FORMAT_ERROR` | 图片不是合法的 Base64 data URL（禁止把文件路径当图片文本发送） |
+| 401 | `AUTH_REQUIRED` | 未登录或 Session 过期 |
+| 401 | `INVALID_CREDENTIALS` | 邮箱或密码错误 |
+| 403 | `CSRF_REJECTED` | 写请求来源校验失败 |
+| 403 | `EMAIL_NOT_VERIFIED` | 邮箱尚未验证 |
 | 404 | `NOT_FOUND` | 资源不存在 |
+| 409 | `EMAIL_ALREADY_REGISTERED` | 邮箱已注册 |
+| 410 | `VERIFICATION_TOKEN_EXPIRED` | 验证链接过期 |
 | 413 | `FILE_TOO_LARGE` / `PAYLOAD_TOO_LARGE` | 文件或请求过大 |
 | 415 | `UNSUPPORTED_FILE_TYPE` | 文件不是 JPG/PNG/WebP |
 | 415 | `INVALID_CONTENT_TYPE` | 请求体不是 JSON |
+| 429 | `LOGIN_RATE_LIMITED` | 登录失败次数过多，带 `Retry-After` |
+| 503 | `EMAIL_DELIVERY_FAILED` | SMTP/邮件投递失败 |
 | 502 | `AI_INVALID_RESPONSE` | 模型返回无法解析为约定的 JSON |
 | 502 | `AI_AUTH_ERROR` | AI API Key 无效或无权限 |
 | 502 | `AI_REQUEST_REJECTED` | 模型名称/接口地址/请求被拒绝 |
@@ -137,25 +270,35 @@ AI 接口额外在顶层返回 `ai`：
 
 ### `GET /api/health`
 
-健康检查。
+需要登录的健康检查。
 
 ```json
 {"ok":true,"data":{"status":"ok","app":"StudyFlow","version":"0.7.0-mvp","server_time":"..."}}
 ```
 
+### `GET /api/health/db`
+
+需要登录的 SQLite 连接检查：
+
+```json
+{"ok":true,"data":{"sqlite":"3.x.x","status":"ok"}}
+```
+
 ### `GET /api/meta`
 
-应用元数据、当前用户、学科列表、AI 能力状态和演示数据摘要。
+应用元数据、当前用户、账户信息、学科列表、AI 能力状态和演示数据摘要。
 
 关键字段：
 
 - `data.user`
+- `data.account`：当前用户的 `id`、登录邮箱和 `email_verified`；不包含密码哈希
 - `data.subjects`
 - `data.ai.policy`：`auto | on | off`
 - `data.ai.text.effective_mode`：`live | demo | unavailable`
 - `data.ai.vision.effective_mode`
 - `data.ai.text.configured`：仅表示服务端是否配置了 Key，不返回 Key
 - `data.demo.loaded`
+- `data.limits`：上传大小、图片类型、笔记字符上限
 
 ### `GET /api/settings`
 
@@ -168,7 +311,7 @@ AI 接口额外在顶层返回 `ai`：
 | 字段 | 类型 | 范围 |
 | --- | --- | --- |
 | `display_name` | string | 1-40 字符 |
-| `email` | string/null | 合法邮箱或空 |
+| `email` | string/null | 更新 `users.email` 资料邮箱；不会改变登录邮箱 `auth_accounts.email` |
 | `avatar_color` | string | `#RRGGBB` |
 | `daily_goal_minutes` | int | 15-720 |
 | `pomodoro_minutes` | int | 1-120 |
@@ -185,7 +328,7 @@ AI 接口额外在顶层返回 `ai`：
 
 ### `GET /api/export`
 
-下载当前用户的完整 JSON 备份（任务、成绩、笔记、学习记录、成就、错题、闪卡）。不会导出 API Key。
+下载当前用户的完整 JSON 备份（任务、成绩、笔记、学习记录、成就、错题、闪卡）。该端点直接返回带 `Content-Disposition` 的 JSON 文件，不是 `{ok,data}` 包装；不会导出 API Key、密码哈希或验证 token。
 
 ---
 
@@ -563,7 +706,7 @@ Query：`subject`、`range`。
 
 ### `POST /api/uploads`
 
-`multipart/form-data` 字段名：`image`（也接受 `file`）。
+需要登录。`multipart/form-data` 字段名：`image`（也接受 `file`）。服务端用 Pillow 校验真实图片格式、限制大小、清理元数据并记录所属 `user_id`。
 
 返回：
 
@@ -579,13 +722,17 @@ Query：`subject`、`range`。
 }
 ```
 
+### `GET /uploads/<filename>`
+
+需要登录，且只返回属于当前 Session 用户的上传文件；其他用户的文件返回 404，不会通过猜测文件名泄露。未登录访问会重定向登录页，不返回文件内容。
+
 ---
 
 ## 11. AI 接口
 
 所有 AI 接口：
 
-1. 只由后端读取环境变量并调用模型；
+1. 只由后端读取环境变量并调用模型；都需要正式登录 Session；
 2. 返回顶层 `ai` 元数据；
 3. 如果 `AI_DEMO_MODE=auto` 且对应能力未配置 Key，则进入**明确标记的**演示模式；
 4. 如果 `AI_DEMO_MODE=off` 且未配置 Key，则返回 `503 AI_NOT_CONFIGURED`；
@@ -741,7 +888,10 @@ Query：`subject`、`range`。
 
 服务端同时托管前端静态资源，浏览器不是通过 API 访问页面，而是：
 
-- `/`：SPA 入口
+- `/`：SPA 入口（需要登录）
+- `/login`：邮箱登录/注册页（公开）
+- `/guest`：访客模式确认页（公开）
+- `/verify-email?token=...`：邮箱验证入口（公开）
 - `/#/dashboard`
 - `/#/planner`
 - `/#/analytics`
@@ -757,23 +907,30 @@ Query：`subject`、`range`。
 
 ## 13. curl 示例
 
+除注册/登录外，业务接口需要先登录并复用 Cookie。以下示例使用占位账户，不要把真实密码写进 shell 历史；生产应使用 HTTPS。
+
 ```bash
+# 登录并把 Session Cookie 保存到本地文件
+curl -c cookies.txt -X POST http://127.0.0.1:5000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"demo@example.invalid","password":"<password>"}'
+
 # 创建任务
-curl -X POST http://127.0.0.1:5000/api/tasks \
+curl -b cookies.txt -X POST http://127.0.0.1:5000/api/tasks \
   -H "Content-Type: application/json" \
   -d '{"title":"完成英语阅读","subject":"英语","estimated_minutes":30,"due_date":"2026-11-12"}'
 
 # 上传图片
-curl -X POST http://127.0.0.1:5000/api/uploads \
+curl -b cookies.txt -X POST http://127.0.0.1:5000/api/uploads \
   -F "image=@homework.png"
 
 # 在演示模式调用作文批改
-curl -X POST http://127.0.0.1:5000/api/ai/essay/review \
+curl -b cookies.txt -X POST http://127.0.0.1:5000/api/ai/essay/review \
   -H "Content-Type: application/json" \
   -d '{"text":"I think this book is very good.","demo":true}'
 
 # 生成计划
-curl -X POST http://127.0.0.1:5000/api/tasks/plan/preview \
+curl -b cookies.txt -X POST http://127.0.0.1:5000/api/tasks/plan/preview \
   -H "Content-Type: application/json" \
   -d '{"available_minutes":120,"start_time":"19:00"}'
 ```

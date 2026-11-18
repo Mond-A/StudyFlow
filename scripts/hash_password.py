@@ -21,7 +21,7 @@ from werkzeug.security import generate_password_hash  # noqa: E402
 
 
 def main() -> int:
-    print("StudyFlow admin password hash generator")
+    print("StudyFlow legacy password hash generator")
     print("The password must be at least 12 characters.")
     password = getpass.getpass("Password: ")
     if len(password) < 12:

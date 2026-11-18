@@ -54,6 +54,20 @@ def test_unauthenticated_api_returns_json_401(anonymous_client):
         assert "text/html" not in response.content_type
 
 
+def test_login_limit_is_shared_across_worker_clients(app_factory):
+    """The limiter must use shared state, not a per-process counter."""
+    app = app_factory(LOGIN_MAX_ATTEMPTS=2)
+    reset_login_limits(app)
+    first_worker = app.test_client()
+    second_worker = app.test_client()
+
+    assert _login(first_worker, "definitely-wrong").status_code == 401
+    assert _login(second_worker, "definitely-wrong").status_code == 401
+    blocked = _login(first_worker, "definitely-wrong")
+    assert blocked.status_code == 429
+    assert blocked.get_json()["error"]["code"] == "LOGIN_RATE_LIMITED"
+
+
 def test_correct_password_login_session_and_logout(anonymous_client):
     with anonymous_client.session_transaction() as sess:
         sess["pre_login"] = "must-disappear"

@@ -1,4 +1,4 @@
--- StudyFlow SQLite schema (MVP, single-user ready with multi-user keys)
+-- StudyFlow SQLite schema (MVP - all business rows are scoped by user_id)
 PRAGMA foreign_keys = ON;
 
 CREATE TABLE IF NOT EXISTS users (
@@ -157,6 +157,15 @@ CREATE TABLE IF NOT EXISTS email_verification_tokens (
     expires_at  TEXT NOT NULL,
     used_at     TEXT,
     created_at  TEXT NOT NULL
+);
+
+-- Shared fixed-window login limiter. Keys are SHA-256 hashes, not raw IPs or
+-- email addresses. SQLite is already required, so this avoids Redis while
+-- keeping counters consistent across Gunicorn workers.
+CREATE TABLE IF NOT EXISTS login_rate_limits (
+    key_hash       TEXT PRIMARY KEY,
+    attempts       INTEGER NOT NULL,
+    window_started REAL NOT NULL
 );
 
 -- Every stored upload is owned by exactly one account.

@@ -1,4 +1,4 @@
-"""Gunicorn configuration for the single-admin StudyFlow deployment.
+"""Gunicorn configuration for a StudyFlow deployment.
 
 Gunicorn is deliberately bound to loopback only. ChmlFrp / a reverse proxy
 may later forward public traffic to this local port; Flask must not be exposed

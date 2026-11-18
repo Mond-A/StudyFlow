@@ -1,21 +1,21 @@
 """Session authentication for StudyFlow.
 
-Email accounts are the primary identity. A legacy single-admin password login
-remains available only while no email account exists, which keeps an existing
-deployment usable until the explicit account migration is applied.
+Email accounts are the primary identity. A legacy password login remains
+available only while no email account exists, so an existing single-user
+database can be upgraded without locking the operator out. Once any email
+account exists, all normal logins go through email verification.
 """
 
 from __future__ import annotations
 
+import hashlib
 import math
 import secrets
-import threading
 import time
-from collections import defaultdict, deque
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from flask import Flask, current_app, redirect, request, send_from_directory, session, url_for
+from flask import Flask, current_app, has_app_context, redirect, request, send_from_directory, session, url_for
 from werkzeug.security import check_password_hash
 
 from .accounts import (
@@ -24,7 +24,7 @@ from .accounts import (
     resend_verification,
     verify_email_token,
 )
-from .db import query_one
+from .db import get_db, query_one
 from .utils.exceptions import APIError
 from .utils.responses import failure, success
 
@@ -56,60 +56,99 @@ _AUTH_TIME_KEY = "auth_at"
 _AUTH_NONCE_KEY = "auth_nonce"
 
 
-class LoginRateLimiter:
-    """Small in-process fixed-window limiter for failed admin logins.
+def _rate_limit_key(key: str) -> str:
+    return hashlib.sha256(key.encode("utf-8")).hexdigest()
 
-    A single-user deployment is small enough for this to be useful without a
-    new database table or external service. Gunicorn workers each have their
-    own counter; the deployment docs mention this tradeoff.
+
+class LoginRateLimiter:
+    """Fixed-window limiter shared by all Gunicorn workers via SQLite.
+
+    SQLite is already the application database, so no extra service is needed.
+    Only a SHA-256 of the IP/email key is stored; raw client identifiers never
+    enter the table. ``BEGIN IMMEDIATE`` serializes the read-modify-write
+    across workers, which keeps the effective limit equal to the configured
+    value instead of multiplying it by the worker count.
     """
 
     def __init__(self, max_attempts: int, window_seconds: int):
         self.max_attempts = max(1, int(max_attempts))
         self.window_seconds = max(60, int(window_seconds))
-        self._attempts: dict[str, deque[float]] = defaultdict(deque)
-        self._lock = threading.Lock()
-
-    def _prune(self, key: str, now: float) -> deque[float]:
-        attempts = self._attempts[key]
-        cutoff = now - self.window_seconds
-        while attempts and attempts[0] <= cutoff:
-            attempts.popleft()
-        if not attempts:
-            self._attempts.pop(key, None)
-            return deque()
-        return attempts
 
     def retry_after(self, key: str) -> int:
-        now = time.monotonic()
-        with self._lock:
-            attempts = self._prune(key, now)
-            if len(attempts) < self.max_attempts:
-                return 0
-            return max(1, math.ceil(self.window_seconds - (now - attempts[0])))
+        now = time.time()
+        row = get_db().execute(
+            "SELECT attempts, window_started FROM login_rate_limits WHERE key_hash = ?",
+            (_rate_limit_key(key),),
+        ).fetchone()
+        if row is None:
+            return 0
+        elapsed = now - float(row["window_started"])
+        if elapsed >= self.window_seconds or int(row["attempts"]) < self.max_attempts:
+            return 0
+        return max(1, math.ceil(self.window_seconds - elapsed))
 
     def record_failure(self, key: str) -> int:
-        now = time.monotonic()
-        with self._lock:
-            attempts = self._prune(key, now)
-            attempts.append(now)
-            self._attempts[key] = attempts
-            if len(attempts) < self.max_attempts:
-                return 0
-            return max(1, math.ceil(self.window_seconds - (now - attempts[0])))
+        now = time.time()
+        key_hash = _rate_limit_key(key)
+        db = get_db()
+        try:
+            # Serialize the read-modify-write across processes sharing SQLite.
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute(
+                "SELECT attempts, window_started FROM login_rate_limits WHERE key_hash = ?",
+                (key_hash,),
+            ).fetchone()
+            if row is None or now - float(row["window_started"]) >= self.window_seconds:
+                attempts = 1
+                started = now
+            else:
+                attempts = int(row["attempts"]) + 1
+                started = float(row["window_started"])
+            db.execute(
+                """
+                INSERT INTO login_rate_limits (key_hash, attempts, window_started)
+                VALUES (?, ?, ?)
+                ON CONFLICT(key_hash) DO UPDATE SET
+                    attempts = excluded.attempts,
+                    window_started = excluded.window_started
+                """,
+                (key_hash, attempts, started),
+            )
+            # Opportunistically remove rows whose window has expired.
+            db.execute(
+                "DELETE FROM login_rate_limits WHERE window_started < ?",
+                (now - self.window_seconds,),
+            )
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise
+        if attempts < self.max_attempts:
+            return 0
+        return max(1, math.ceil(self.window_seconds - (now - started)))
 
     def clear(self, key: str) -> None:
-        with self._lock:
-            self._attempts.pop(key, None)
+        db = get_db()
+        db.execute(
+            "DELETE FROM login_rate_limits WHERE key_hash = ?",
+            (_rate_limit_key(key),),
+        )
+        db.commit()
 
     def reset(self) -> None:
-        with self._lock:
-            self._attempts.clear()
+        db = get_db()
+        db.execute("DELETE FROM login_rate_limits")
+        db.commit()
 
 
 def reset_login_limits(app: Flask) -> None:
     limiter = app.extensions.get("studyflow_login_limiter")
-    if limiter:
+    if not limiter:
+        return
+    if has_app_context():
+        limiter.reset()
+        return
+    with app.app_context():
         limiter.reset()
 
 

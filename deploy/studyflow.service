@@ -1,5 +1,5 @@
 [Unit]
-Description=StudyFlow - single-admin learning workspace
+Description=StudyFlow - multi-user learning workspace
 Documentation=file:/opt/studyflow/docs/DEPLOY_DEBIAN_ARM64.md
 After=network-online.target
 Wants=network-online.target

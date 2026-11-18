@@ -25,6 +25,8 @@ StudyFlow 是一个面向中学生的全栈学习工作台：把作业规划、�
 - [后续开发接口](#后续开发接口)
 - [常见问题](#常见问题)
 - [API 文档](docs/API.md)
+- [安全政策](SECURITY.md)
+- [部署与运维](docs/DEPLOY_DEBIAN_ARM64.md)
 - [UI 设计系统](docs/UI_DESIGN_SYSTEM.md)
 
 ---
@@ -39,9 +41,11 @@ StudyFlow 是一个面向中学生的全栈学习工作台：把作业规划、�
 - ✅ 英语作文批改、表达润色、长难句、语法诊断、出题、阅卷
 - ✅ 笔记 CRUD、Toast UI 编辑、图片识别草稿、AI 检查、KaTeX 预览、Cytoscape 知识图
 - ✅ 番茄钟、手动学习记录、学习成就、闪卡生成与间隔复习、错题知识点归类、每日报告
+- ✅ 多用户邮箱账户：注册、邮箱验证、邮箱登录、Session 绑定与按用户数据隔离
+- ✅ 访客模式：浏览器 IndexedDB 本地存储、明确确认后导入账户、访客 AI 禁用
 - ✅ 统一 REST API / 统一 AI Service / JSON 校验 / 有限重试 / 明确错误语义
 - ✅ SQLite 持久化、演示数据可载入/清除、JSON 导出
-- ✅ 后端 pytest 测试、浏览器自动化联调（桌面 + 390px 移动端）
+- ✅ 后端 pytest 测试、GitHub Actions CI、浏览器自动化联调（桌面 + 390px 移动端）
 - ✅ 已使用本地 `.env` 真实凭据完成 Qwen 视觉（含图片）与 DeepSeek 文本连通性测试；Key 不写入代码、日志或版本库
 - 🎨 十个生产页面已完成 Fluent 设计系统迁移；Fluent 2 tokens、Mica/Acrylic、全站浅/深色主题、本地固定资源
 
@@ -60,7 +64,7 @@ StudyFlow 是一个面向中学生的全栈学习工作台：把作业规划、�
 | **Flashcards 闪卡** | 手动 CRUD、从笔记 AI 生成、翻面复习、1/3/5 评分、掌握度与下次复习日期、到期队列 |
 | **Errors 错题本** | 错题 CRUD、知识点标签、掌握状态、答案/错因折叠、AI 学科与知识点归类建议 |
 | **Reports 学习报告** | 按日期查看本地学习汇总、目标进度、任务回顾、学科投入、时间线、建议、打印 |
-| **Settings 设置** | Fluent 重设计；昵称/邮箱/头像色、目标/番茄钟时长、AI 服务状态、环境变量说明、演示数据载入/清除、JSON 导出、浅/深色主题、跟随系统、减少动画 |
+| **Settings 设置** | Fluent 重设计；昵称/资料邮箱/头像色、目标/番茄钟时长、AI 服务状态、环境变量说明、演示数据载入/清除、JSON 导出、浅/深色主题、跟随系统、减少动画。资料邮箱与登录邮箱不是同一个字段，登录邮箱不在此页修改 |
 
 ### 页面预览
 
@@ -138,7 +142,7 @@ python scripts/hash_password.py
 python run.py
 ```
 
-启动前必须把生成的 `STUDYFLOW_PASSWORD_HASH` 和随机生成的 `SECRET_KEY` 写入 `.env`；缺少时应用会拒绝启动。
+启动前必须把随机生成的 `SECRET_KEY` 和 `STUDYFLOW_PASSWORD_HASH` 写入 `.env`；缺少时应用会拒绝启动。`STUDYFLOW_PASSWORD_HASH` 用于启动校验和旧数据库的过渡登录，不是新用户的正常登录方式；新用户通过邮箱注册并完成验证。
 
 **macOS / Linux**
 
@@ -151,9 +155,9 @@ python scripts/hash_password.py
 python run.py
 ```
 
-启动前必须把生成的 `STUDYFLOW_PASSWORD_HASH` 和随机生成的 `SECRET_KEY` 写入 `.env`；缺少时应用会拒绝启动。
+启动前必须把随机生成的 `SECRET_KEY` 和 `STUDYFLOW_PASSWORD_HASH` 写入 `.env`；缺少时应用会拒绝启动。`STUDYFLOW_PASSWORD_HASH` 用于启动校验和旧数据库的过渡登录，不是新用户的正常登录方式；新用户通过邮箱注册并完成验证。
 
-打开 <http://127.0.0.1:5000>。
+打开 <http://127.0.0.1:5000>。首次使用请打开 <http://127.0.0.1:5000/login?mode=register> 创建邮箱账户；本地默认 `MAIL_BACKEND=console`，验证链接会打印在后端终端，而不会真的发邮件。要接收真实验证邮件，请按[部署说明](docs/DEPLOY_DEBIAN_ARM64.md)配置 SMTP。
 
 如果不想手动敲命令，Windows 可双击/执行：
 
@@ -178,7 +182,7 @@ powershell -ExecutionPolicy Bypass -File .\start.ps1
 
 ### 2. 数据库初始化
 
-正常情况下不需要额外步骤：`run.py` 启动时会自动执行 `backend/schema.sql`，并确保默认用户存在。
+正常情况下不需要额外步骤：`run.py` 启动时会自动执行幂等的 `backend/schema.sql`，创建表、索引、共享登录限流表和旧数据兼容用户。已有数据库不会被清空。
 
 也可以手动初始化（可查看表记录数）：
 
@@ -193,28 +197,52 @@ python scripts/init_db.py --no-seed
 python scripts/init_db.py --reload-demo
 ```
 
-生产配置默认 `SEED_DEMO=false`，不会写入演示数据。仅本地开发需要演示数据时可显式设为 `true`；清除演示数据不会删除用户自己创建的内容。初始化前必须已经配置 `.env` 中的认证参数。
+`.env.example` 默认 `SEED_DEMO=false`，不会写入演示数据；若完全不设置该变量，代码层默认值是 `true`，因此生产环境应显式设为 `false`。仅本地开发需要演示数据时才设为 `true`；清除演示数据不会删除用户自己创建的内容。初始化前必须已经配置 `.env` 中的认证参数。
 
 ### 3. 访问
 
 | 地址 | 说明 |
 | --- | --- |
-| <http://127.0.0.1:5000/login> | 管理员登录页（公开） |
+| <http://127.0.0.1:5000/login> | 邮箱登录页（公开）；`?mode=register` 打开注册 |
+| <http://127.0.0.1:5000/guest> | 访客模式确认页（公开；不创建服务端账户） |
+| <http://127.0.0.1:5000/verify-email?token=...> | 邮箱验证链接（公开） |
 | <http://127.0.0.1:5000> | 应用首页，未登录会跳转登录页 |
 | <http://127.0.0.1:5000/api/health> | 健康检查（需要登录） |
 | <http://127.0.0.1:5000/api/meta> | 应用与 AI 配置状态（需要登录） |
-| <http://127.0.0.1:5000/api/*> | REST API 前缀，除登录/登出外均需要 Session |
+| <http://127.0.0.1:5000/api/*> | REST API 前缀；`/api/auth/*` 公开，其余需要 Session |
 
-## 管理员认证
+## 邮箱账户、认证与访客模式
 
-- 单管理员密码，无注册、无多用户、无角色。
-- 所有页面、`/api/*` 和 `/uploads/*` 默认要求登录；只有登录/登出接口例外。
-- 未登录 API 返回 JSON `401 AUTH_REQUIRED`，不会返回 HTML 登录页。
-- Session Cookie 使用 HttpOnly、SameSite=Lax；HTTPS 部署后可设置 `SESSION_COOKIE_SECURE=true`。
-- 登录失败默认 5 次/15 分钟限流；Session 默认 12 小时过期。
-- 侧栏底部有“退出登录”按钮。
-- 密码哈希通过 `python scripts/hash_password.py` 生成，明文不落盘。
-- 生产部署：见 [Debian ARM64 部署说明](docs/DEPLOY_DEBIAN_ARM64.md)。
+**正式账户**
+
+- 账户以邮箱为主要登录标识；注册后必须通过邮件中的验证链接，未验证账户不能登录。
+- 注册密码至少 12 个字符（由 `PASSWORD_MIN_LENGTH` 控制），服务端只保存 scrypt 哈希。
+- 登录使用 `POST /api/auth/login` 或 `/login` 表单；成功后才建立 Flask Session。
+- 所有业务数据、AI 接口和 `/uploads/*` 文件都按当前 Session 的 `user_id` 隔离；没有“管理员可以查看全部用户数据”的接口。
+- 每个 `users` 行通过 `auth_accounts` 一对一关联登录邮箱。设置页可编辑资料邮箱，但**不会修改登录邮箱**。
+- Session Cookie 使用 HttpOnly、可配置 SameSite；HTTPS 部署后应设置 `SESSION_COOKIE_SECURE=true`。Session 默认 12 小时过期，登录会清空旧 Session。
+- 写请求要求同源 `Origin/Referer`，作为 SameSite 之外的 CSRF 防护。
+- 登录失败按来源 IP 和邮箱计数，默认 5 次/15 分钟；计数表由 SQLite 共享，多个 Gunicorn Worker 使用同一份计数。
+- 注册、登录、重发验证和 API 验证的请求/响应见 [API 文档](docs/API.md)。
+
+**过渡兼容**
+
+`STUDYFLOW_PASSWORD_HASH` 仍是启动时的必填安全配置。当数据库里还没有任何邮箱账户时，旧登录表单/API 可用这个密码哈希做过渡登录；一旦创建了邮箱账户，该入口不再生效。这不是新用户的正常注册/登录流程，也不应在文档或产品界面中宣传为管理员账户体系。
+
+如果旧数据库中的现有业务数据需要归属到某个邮箱账户，必须在备份并验证后显式运行 `scripts/migrate_iteration1.py --admin-email ...`；仅启动应用只会幂等创建新增表，不会自动更改旧数据的 `user_id` 或把旧资料绑定到新账户。
+
+**访客模式**
+
+- `/guest` 会先展示确认页；确认后清除正式 Session，SPA 以 `window.__STUDYFLOW_GUEST__` 运行。
+- 访客业务数据只写入浏览器 IndexedDB（`studyflow-guest`），不会发送到服务端，也没有云端账户、跨设备同步或服务端备份。
+- 清除浏览器站点数据、换浏览器或换设备都可能丢失访客数据。
+- 访客模式不开放 AI 工具（前端本地返回 `GUEST_AI_DISABLED`，直接请求服务端 AI 也会因没有 Session 返回 401）；也不提供演示数据载入。
+- 登录正式账户后，如果当前浏览器仍有访客数据，应用会弹窗列出数量并询问是否导入；只有用户点击确认后才会调用 `POST /api/guest/import`。导入按当前 Session 的用户执行，忽略客户端伪造的 `user_id`，按批次和本地记录 UID 幂等，不覆盖已有账户记录；导入后本地访客数据仍保留。
+
+**配置文件与旧密码**
+
+- 旧密码哈希通过 `python scripts/hash_password.py` 生成，明文不落盘；不要把它与普通用户密码混用。
+- 生产部署、SMTP、HTTPS 与备份见 [Debian ARM64 部署说明](docs/DEPLOY_DEBIAN_ARM64.md)。
 
 本地数据默认位于：
 
@@ -235,17 +263,28 @@ data/uploads/
 | `PORT` | `5000` | Flask 端口 |
 | `FLASK_ENV` | `production` | 不要用 development/debug 对外提供服务 |
 | `SECRET_KEY` | 无默认值 | **必填**；至少 32 位随机值 |
-| `STUDYFLOW_PASSWORD_HASH` | 无默认值 | **必填**；`scripts/hash_password.py` 生成 |
+| `STUDYFLOW_PASSWORD_HASH` | 无默认值 | **必填**；启动校验与旧库过渡登录兼容；新用户不使用它登录 |
 | `SESSION_COOKIE_SAMESITE` | `Lax` | `Lax` / `Strict` / `None` |
 | `SESSION_COOKIE_SECURE` | `false` | HTTPS 部署后设为 `true` |
 | `SESSION_LIFETIME_HOURS` | `12` | 登录会话最长有效时间 |
-| `LOGIN_MAX_ATTEMPTS` | `5` | 登录失败次数上限 |
-| `LOGIN_WINDOW_SECONDS` | `900` | 登录失败滑动窗口 |
+| `LOGIN_MAX_ATTEMPTS` | `5` | 共享登录限流允许的失败次数 |
+| `LOGIN_WINDOW_SECONDS` | `900` | 登录失败固定窗口秒数 |
+| `MAIL_BACKEND` | `console` | `console` 仅本地开发；生产使用 `smtp` |
+| `MAIL_FROM` | `StudyFlow <no-reply@localhost>` | 验证邮件发件人 |
+| `PUBLIC_BASE_URL` | `http://127.0.0.1:5000` | 验证链接的公开基地址；生产必须是 HTTPS 外部地址 |
+| `EMAIL_VERIFICATION_HOURS` | `24` | 验证链接有效期 |
+| `PASSWORD_MIN_LENGTH` | `12` | 新账户密码最小长度 |
+| `SMTP_HOST` | 空 | SMTP 主机；生产必填 |
+| `SMTP_PORT` | `587` | SMTP 端口 |
+| `SMTP_USERNAME` | 空 | SMTP 登录名；为空则不登录 |
+| `SMTP_PASSWORD` | 空 | SMTP 密码；只放 `.env` |
+| `SMTP_USE_TLS` | `true` | 非 SSL 连接使用 STARTTLS |
+| `SMTP_USE_SSL` | `false` | 使用 SMTPS/465；与 STARTTLS 二选一 |
 | `TRUST_PROXY` | `false` | 仅在可信反向代理后设为 `true` |
 | `TIMEZONE` | `Asia/Shanghai` | 日期、今日统计使用 |
 | `DATABASE_PATH` | `data/studyflow.db` | 相对项目根目录 |
 | `UPLOAD_DIR` | `data/uploads` | 上传目录 |
-| `SEED_DEMO` | `false` | 首次初始化是否写入演示数据 |
+| `SEED_DEMO` | 代码默认 `true`，示例配置 `false` | 生产必须显式设为 `false` |
 | `CORS_ORIGINS` | 空 | 需要跨域时填写允许的前端源，逗号分隔 |
 | `AI_DEMO_MODE` | `auto` | `auto` / `on` / `off`，见下文 |
 | `AI_TIMEOUT` | `60` | 请求 AI 的超时秒数 |
@@ -348,11 +387,15 @@ python scripts/test_ai_connection.py --capability all
 studyflow/
 ├── backend/
 │   ├── app.py                 # Flask factory、静态前端、API 错误处理、蓝图注册
+│   ├── accounts.py            # 邮箱注册、验证、登录校验
+│   ├── auth.py                # Session、来源校验、共享登录限流
+│   ├── mailer.py              # console/SMTP 验证邮件
 │   ├── config.py              # 环境变量配置
-│   ├── db.py                  # 连接、schema 初始化、默认用户、meta
+│   ├── db.py                  # 连接、schema 初始化、当前用户、meta
 │   ├── schema.sql             # SQLite 表结构 + 索引
 │   ├── routes/
 │   │   ├── meta.py            # health/meta/settings/demo/export
+│   │   ├── guest_import.py    # 登录后显式导入访客数据
 │   │   ├── dashboard.py
 │   │   ├── tasks.py           # 任务 CRUD + 规划
 │   │   ├── grades.py          # 成绩 CRUD + analytics
@@ -397,7 +440,14 @@ studyflow/
 │   └── screenshots/
 ├── scripts/
 │   ├── init_db.py
+│   ├── hash_password.py       # 旧库兼容密码哈希
+│   ├── backup_db.sh           # 手动 SQLite + uploads 在线备份
+│   ├── backup_snapshot.py     # 手动快照 + 完整性/恢复检查
+│   ├── restore_snapshot.py    # 显式数据库恢复（上传文件需手动恢复）
 │   └── test_ai_connection.py  # 可选的真实 Qwen/DeepSeek 连通测试
+├── deploy/                    # Gunicorn 与 systemd 示例
+├── .github/workflows/         # pytest + JS 语法 CI
+├── SECURITY.md
 ├── .env.example
 ├── requirements.txt
 ├── pytest.ini
@@ -416,7 +466,10 @@ SQLite，所有时间字段文本化存储 ISO 时间，业务日期为 `YYYY-MM
 
 | 表 | 关键字段 |
 | --- | --- |
-| `users` | 用户、显示名、每日目标、番茄钟/休息分钟、时区 |
+| `users` | 用户资料、显示名、资料邮箱、每日目标、番茄钟/休息分钟、时区 |
+| `auth_accounts` | 登录邮箱、scrypt 密码哈希、验证时间；与 `users` 一对一 |
+| `email_verification_tokens` | 验证 token 的 SHA-256、过期时间、使用时间 |
+| `login_rate_limits` | 共享登录失败计数（只存 SHA-256 键，不存原始 IP/邮箱） |
 | `tasks` | 标题、学科、说明、截止、预计/实际分钟、难度、优先级、状态、计划日期/开始/时长、来源、AI 元信息 |
 | `grades` | 学科、考试、得分、满分、日期、备注 |
 | `notes` | 标题、学科、Markdown、来源图片、检查结果 JSON、知识图 JSON |
@@ -424,14 +477,19 @@ SQLite，所有时间字段文本化存储 ISO 时间，业务日期为 `YYYY-MM
 | `achievements` | code、标题、描述、图标、解锁时间，`(user_id, code)` 唯一 |
 | `error_records` | 学科、题目、作答、正确答案、错因、知识点 JSON、掌握状态 |
 | `flashcards` | 正面、背面、学科、笔记关联、掌握度、复习次数、下次复习日 |
+| `uploads` | 上传文件元数据、原始文件名、MIME、大小、所属 `user_id` |
+| `guest_import_batches` / `guest_import_items` | 访客导入幂等台账与记录映射 |
+| `idempotency_keys` | 普通写请求的幂等重试记录 |
 | `demo_records` | 跟踪演示种子创建的记录，仅用于安全清除演示数据 |
 | `app_meta` | 演示种子/清除标记等元数据 |
 
 额外说明：
 
-- 每张业务表都有 `user_id` 外键与级联删除，当前单用户 ID 固定为 `1`，但结构可以直接扩展多用户。
+- 每张业务表都有 `user_id` 外键与级联删除；用户身份来自 Session，不再固定为 `user_id=1`。
+- `users.email` 是资料邮箱；`auth_accounts.email` 才是登录邮箱，两者不自动同步。
 - 建立了任务状态/截止日期/计划日期、成绩日期/学科、学习记录日期、闪卡下次复习等索引。
-- 认证由 Flask Session 单管理员登录保护；所有生产页面、API 和上传文件默认需要登录。数据库仍是单用户 `user_id=1`，不提供注册、多用户或独立数据空间。
+- 认证由 Flask Session + 邮箱账户保护；所有业务页面、API 和 `/uploads/*` 默认需要登录，`/api/auth/*` 与 `/guest` 等明确公开的入口除外。
+- 访客数据只存在浏览器 IndexedDB，不在 SQLite 中；只有用户确认导入后才写入当前账户。
 
 ---
 
@@ -443,9 +501,17 @@ SQLite，所有时间字段文本化存储 ISO 时间，业务日期为 `YYYY-MM
 python -m pytest
 ```
 
+GitHub Actions 工作流 [`.github/workflows/ci.yml`](.github/workflows/ci.yml) 在 Push 和 Pull Request 时运行：
+
+- Python 3.10 / 3.11 / 3.12 矩阵，安装 `requirements.txt` 后执行完整 `pytest`；
+- Node 20 仅用于 `node --check`，检查 `frontend/` 下非 `vendor` 的 JavaScript 语法，不引入前端构建；
+- 测试环境使用 `MAIL_BACKEND=console`、`SEED_DEMO=false`，不需要真实 SMTP、AI Key 或生产数据库。
+
 测试覆盖：
 
-- 管理员登录/登出、未登录页面跳转、未登录 API JSON 401、Session 过期、登录限流、CSRF 来源校验、Cookie 标志
+- 邮箱注册、验证 token、未验证登录拒绝、邮箱登录/登出、Session 过期、共享登录限流、CSRF 来源校验、Cookie 标志
+- 多用户读写隔离、跨用户关联引用拒绝、上传文件归属
+- 访客模式边界、访客导入的登录要求、幂等、事务回滚和伪造 `user_id` 忽略
 - health/meta/settings/静态页面托管/统一错误结构
 - 任务 CRUD、完成/重开、规划预览与应用
 - 成绩 CRUD、得分率、筛选、图表数据
@@ -493,14 +559,16 @@ python scripts/test_ai_connection.py --capability all
 
 ## 已知限制与未实测项
 
-1. **单管理员登录**。所有页面/API/上传文件需要 Session；没有注册、多用户或独立数据空间。登录限流是进程内计数，2 个 Gunicorn worker 各自计数。
-2. **真实模型的可用性与网络环境相关**。本次账号/网络下 Qwen `qwen3.8-flash`（含图片）和 DeepSeek 文本均实测通过；DeepSeek 响应模型名为 `deepseek-flash`（请求配置仍保留 `deepseek-chat` 别名）。换账号、换模型或换网络后应以 `scripts/test_ai_connection.py` 重新验证，供应商拒绝时会明确返回 `AI_REQUEST_REJECTED` 或 `AI_AUTH_ERROR`。
-3. **演示模式不执行真实 OCR**。图片识别只返回明显标记的示例结构，不会假装已识别图片内容。
-4. **无后台任务队列**。AI 请求是同步的，受浏览器 fetch 90 秒和模型自身超时限制；大型视觉请求可能较慢。
-5. **番茄钟不跨页面持续计时**。离开 Focus 页面会停止当前计时，建议完成一轮后离开或使用手动补录。
-6. **知识图谱与笔记 PDF 等高级能力未做**。当前支持 Markdown 图片识别、检查、KaTeX 与 Cytoscape 交互图。
-7. **UI 已迁移到 Fluent 设计系统**，覆盖 10 个页面与多档响应式视口，支持浅/深色主题；详见 [全站 Fluent 迁移](docs/ALL_PAGES_FLUENT_MIGRATION.md)。
-8. **未安装自动备份 cron**。提供 `scripts/backup_db.sh` 做 SQLite + uploads 在线备份，部署后建议自行配置定时任务；设置页 JSON 导出仍可用。
+1. **邮箱账户是主流程，仍有旧库过渡入口**。新用户通过邮箱注册和验证登录；只有数据库里还没有邮箱账户时，`STUDYFLOW_PASSWORD_HASH` 对应的旧密码入口才生效。没有角色/管理员越权查看接口，也没有密码找回或 2FA。
+2. **验证邮件依赖 SMTP**。`MAIL_BACKEND=console` 只适合本地开发，它把验证 URL 写到终端；生产必须配置 SMTP 和可外部访问的 `PUBLIC_BASE_URL`，否则注册会以 `EMAIL_DELIVERY_FAILED` 失败，账户保持未验证。
+3. **访客模式不是云端账户**。数据仅在当前浏览器 IndexedDB；清除站点数据/换设备可能丢失，且访客模式不开放 AI、演示数据载入和跨设备同步。导入必须由用户明确确认，导入后本地访客数据不会自动删除。
+4. **真实模型的可用性与网络环境相关**。本次账号/网络下 Qwen `qwen3.8-flash`（含图片）和 DeepSeek 文本均实测通过；DeepSeek 响应模型名为 `deepseek-flash`（请求配置仍保留 `deepseek-chat` 别名）。换账号、换模型或换网络后应以 `scripts/test_ai_connection.py` 重新验证，供应商拒绝时会明确返回 `AI_REQUEST_REJECTED` 或 `AI_AUTH_ERROR`。
+5. **演示模式不执行真实 OCR**。图片识别只返回明显标记的示例结构，不会假装已识别图片内容。
+6. **无后台任务队列**。AI 请求是同步的，受浏览器 fetch 90 秒和模型自身超时限制；大型视觉请求可能较慢。
+7. **番茄钟不跨页面持续计时**。离开 Focus 页面会停止当前计时，建议完成一轮后离开或使用手动补录。
+8. **知识图谱与笔记 PDF 等高级能力未做**。当前支持 Markdown 图片识别、检查、KaTeX 与 Cytoscape 交互图。
+9. **UI 已迁移到 Fluent 设计系统**，覆盖 10 个页面与多档响应式视口，支持浅/深色主题；详见 [全站 Fluent 迁移](docs/ALL_PAGES_FLUENT_MIGRATION.md)。
+10. **自动备份未实现**。只有手动脚本：`backup_db.sh`（DB + uploads 压缩包）、`backup_snapshot.py`（DB + uploads 快照、完整性/恢复检查）和 `restore_snapshot.py`（显式恢复数据库；上传文件需手动恢复）。仓库没有 cron/systemd timer；设置页 JSON 导出不是完整服务器备份。
 
 ---
 
@@ -513,7 +581,7 @@ python scripts/test_ai_connection.py --capability all
 - `backend/routes/*.py`：按领域新增路由；统一使用 `utils.responses.success` 与 `utils.exceptions.APIError`。
 - `backend/services/ai_features.py`：新增 AI 工具时，先写 prompt 与字段归一化，再在 `routes/ai.py` 注册薄路由。
 - `backend/services/ai_service.py`：统一模型网关；不要在前端直接请求模型。
-- 多用户化：从 `get_current_user_id()` 注入真实认证身份；各表已有 `user_id`。
+- 多用户身份：所有新查询必须从 `get_current_user_id()`/Session 注入身份，不能接受客户端 `user_id`；各表已有 `user_id`。
 - 更丰富的分析：`services/analytics.py` 与 `services/reports.py` 接收 user_id，可扩展周/月报告、导出。
 - 规划算法：`services/planner.py` 是纯本地、可测试的规则层，可进一步加入休息间隔、分天排期。
 
@@ -583,7 +651,7 @@ python run.py
 
 ### 如何清空所有本地数据？
 
-先备份，再停止服务，删除数据库文件：
+这会删除所有正式账户及其数据；访客数据在浏览器 IndexedDB 中，需在对应浏览器中单独清除。先备份，再停止服务，删除数据库文件：
 
 ```powershell
 # Windows PowerShell（确认路径后执行）
