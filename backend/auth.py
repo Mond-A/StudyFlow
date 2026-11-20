@@ -9,8 +9,12 @@ account exists, all normal logins go through email verification.
 from __future__ import annotations
 
 import hashlib
+import ipaddress
 import math
+import os
 import secrets
+import socket
+import sqlite3
 import time
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -25,6 +29,7 @@ from .accounts import (
     verify_email_token,
 )
 from .db import get_db, query_one
+from .rate_limit import RATE_LIMIT_RETENTION_SECONDS
 from .utils.exceptions import APIError
 from .utils.responses import failure, success
 
@@ -74,12 +79,23 @@ class LoginRateLimiter:
         self.max_attempts = max(1, int(max_attempts))
         self.window_seconds = max(60, int(window_seconds))
 
+    @staticmethod
+    def _unavailable(exc: BaseException) -> APIError:
+        return APIError(
+            "登录服务暂时不可用，请稍后再试",
+            code="RATE_LIMIT_UNAVAILABLE",
+            status_code=503,
+        )
+
     def retry_after(self, key: str) -> int:
         now = time.time()
-        row = get_db().execute(
-            "SELECT attempts, window_started FROM login_rate_limits WHERE key_hash = ?",
-            (_rate_limit_key(key),),
-        ).fetchone()
+        try:
+            row = get_db().execute(
+                "SELECT attempts, window_started FROM login_rate_limits WHERE key_hash = ?",
+                (_rate_limit_key(key),),
+            ).fetchone()
+        except sqlite3.OperationalError as exc:
+            raise self._unavailable(exc) from exc
         if row is None:
             return 0
         elapsed = now - float(row["window_started"])
@@ -114,12 +130,17 @@ class LoginRateLimiter:
                 """,
                 (key_hash, attempts, started),
             )
-            # Opportunistically remove rows whose window has expired.
+            # Keep rows longer than the login window so this cleanup cannot
+            # erase a still-active registration/resend limit with a longer
+            # window. The shared retention policy is defined in rate_limit.py.
             db.execute(
                 "DELETE FROM login_rate_limits WHERE window_started < ?",
-                (now - self.window_seconds,),
+                (now - RATE_LIMIT_RETENTION_SECONDS,),
             )
             db.commit()
+        except sqlite3.OperationalError as exc:
+            db.rollback()
+            raise self._unavailable(exc) from exc
         except Exception:
             db.rollback()
             raise
@@ -129,11 +150,15 @@ class LoginRateLimiter:
 
     def clear(self, key: str) -> None:
         db = get_db()
-        db.execute(
-            "DELETE FROM login_rate_limits WHERE key_hash = ?",
-            (_rate_limit_key(key),),
-        )
-        db.commit()
+        try:
+            db.execute(
+                "DELETE FROM login_rate_limits WHERE key_hash = ?",
+                (_rate_limit_key(key),),
+            )
+            db.commit()
+        except sqlite3.OperationalError as exc:
+            db.rollback()
+            raise self._unavailable(exc) from exc
 
     def reset(self) -> None:
         db = get_db()
@@ -327,15 +352,102 @@ def _email_attempt(email: str, password: str) -> tuple[dict | None, int]:
 
 
 def _api_error(error: APIError):
-    return failure(
+    response = failure(
         error.message,
         code=error.code,
         status=error.status_code,
         details=error.details,
     )
+    retry_after = (error.details or {}).get("retry_after")
+    if error.code == "RATE_LIMITED" and retry_after:
+        response.headers["Retry-After"] = str(int(retry_after))
+    return response
+
+
+def _validate_public_base_url(app: Flask) -> None:
+    """Reject a missing/local/insecure verification base URL in production.
+
+    Local HTTP is intentionally allowed for tests and the development server;
+    production email links must use an external HTTPS origin.
+    """
+    if app.config.get("TESTING"):
+        return
+    environment = os.getenv("FLASK_ENV", "production").strip().lower()
+    if environment != "production":
+        return
+
+    raw = str(app.config.get("PUBLIC_BASE_URL") or "").strip()
+    try:
+        parsed = urlsplit(raw)
+        port = parsed.port
+        hostname = parsed.hostname
+    except ValueError as exc:
+        raise RuntimeError(
+            "PUBLIC_BASE_URL is not a valid URL; set the external HTTPS origin."
+        ) from exc
+
+    if (
+        parsed.scheme.lower() != "https"
+        or not hostname
+        or parsed.username
+        or parsed.password
+        or parsed.query
+        or parsed.fragment
+        or any(character.isspace() for character in raw)
+    ):
+        raise RuntimeError(
+            "PUBLIC_BASE_URL must be an external HTTPS URL without credentials, "
+            "query string, or fragment."
+        )
+    if port is not None and not 1 <= port <= 65535:
+        raise RuntimeError("PUBLIC_BASE_URL has an invalid port.")
+
+    host = hostname.rstrip(".").lower()
+    if host == "localhost" or host.endswith(".localhost") or host.endswith(".local"):
+        raise RuntimeError("PUBLIC_BASE_URL must not point at localhost/.local.")
+    try:
+        address = ipaddress.ip_address(host)
+    except ValueError:
+        address = None
+    if address is not None:
+        if not address.is_global:
+            raise RuntimeError(
+                "PUBLIC_BASE_URL must use a public hostname, not a private IP."
+            )
+        return
+    if "." not in host:
+        raise RuntimeError("PUBLIC_BASE_URL must use an external domain name.")
+
+    try:
+        resolved = socket.getaddrinfo(
+            host,
+            port or 443,
+            type=socket.SOCK_STREAM,
+        )
+    except OSError as exc:
+        raise RuntimeError(
+            "PUBLIC_BASE_URL hostname could not be resolved; refusing to start."
+        ) from exc
+    if not resolved:
+        raise RuntimeError(
+            "PUBLIC_BASE_URL hostname resolved to no addresses; refusing to start."
+        )
+    for info in resolved:
+        sockaddr = info[4]
+        try:
+            resolved_address = ipaddress.ip_address(sockaddr[0])
+        except ValueError as exc:
+            raise RuntimeError(
+                "PUBLIC_BASE_URL hostname resolved to an invalid address."
+            ) from exc
+        if not resolved_address.is_global:
+            raise RuntimeError(
+                "PUBLIC_BASE_URL hostname resolves to a non-public address."
+            )
 
 
 def _validate_security_config(app: Flask) -> None:
+    _validate_public_base_url(app)
     secret = str(app.config.get("SECRET_KEY") or "").strip()
     if not secret or secret in _WEAK_SECRETS or len(secret) < 32:
         raise RuntimeError(
@@ -402,10 +514,16 @@ def init_auth(app: Flask) -> None:
             try:
                 _email_attempt(email, password)
             except APIError as error:
-                code = "unverified" if error.code == "EMAIL_NOT_VERIFIED" else "invalid"
+                if error.status_code == 503:
+                    code = "service"
+                else:
+                    code = "unverified" if error.code == "EMAIL_NOT_VERIFIED" else "invalid"
                 return redirect(url_for("login_page", error=code, next=next_path))
             return redirect(next_path)
-        ok, retry = _legacy_attempt(password)
+        try:
+            ok, retry = _legacy_attempt(password)
+        except APIError:
+            return redirect(url_for("login_page", error="service", next=next_path))
         if retry:
             return redirect(url_for("login_page", error="rate", next=next_path))
         if not ok:

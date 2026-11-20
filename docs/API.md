@@ -1,6 +1,6 @@
 # StudyFlow REST API
 
-版本：`1.1.0`
+版本：`1.1.1`
 
 API 前缀：`/api`  
 默认服务地址：`http://127.0.0.1:5000`
@@ -50,9 +50,11 @@ StudyFlow 是多用户邮箱账户应用。业务数据归属于当前登录 Ses
 | 400 | `VALIDATION_ERROR` | 邮箱格式、密码过长等 |
 | 400 | `WEAK_PASSWORD` | 密码少于最小长度 |
 | 409 | `EMAIL_ALREADY_REGISTERED` | 邮箱已注册 |
-| 503 | `EMAIL_DELIVERY_FAILED` | 账户已创建但验证邮件发送失败；最多可稍后重发 |
+| 429 | `RATE_LIMITED` | 注册请求触发 IP、邮箱或全站共享限流 |
+| 503 | `RATE_LIMIT_UNAVAILABLE` | 限流存储暂时繁忙/锁定；请求未被当作限流拒绝 |
+| 503 | `EMAIL_DELIVERY_FAILED` | 账户已创建但验证邮件发送失败；可稍后通过重发入口重试 |
 
-本地 `MAIL_BACKEND=console` 不会真的发邮件，而是把验证 URL 记录到本地 outbox/终端；生产必须配置 SMTP。
+本地 `MAIL_BACKEND=console` 不会真的发邮件，只把验证 URL 记录在内存 outbox 供测试/调试，且不会把 token 或完整 URL 写入应用日志；生产必须配置 SMTP。
 
 ### `POST /api/auth/login`
 
@@ -82,6 +84,7 @@ StudyFlow 是多用户邮箱账户应用。业务数据归属于当前登录 Ses
 | 401 | `INVALID_CREDENTIALS` | 邮箱或密码错误 |
 | 403 | `EMAIL_NOT_VERIFIED` | 密码正确但邮箱尚未验证 |
 | 429 | `LOGIN_RATE_LIMITED` | 登录失败次数过多；带 `Retry-After` |
+| 503 | `RATE_LIMIT_UNAVAILABLE` | 登录限流存储暂时不可用；不是密码错误 |
 
 **旧库过渡兼容**：仅当数据库里没有任何 `auth_accounts` 时，请求可以不传 `email`，用 `STUDYFLOW_PASSWORD_HASH` 对应的旧密码登录（请求体 `{"password": "..."}`）。一旦创建邮箱账户，这个入口不再生效。新用户不应使用该流程。
 
@@ -91,7 +94,9 @@ StudyFlow 是多用户邮箱账户应用。业务数据归属于当前登录 Ses
 {"email": "demo@example.invalid"}
 ```
 
-对未知或已验证邮箱也会返回统一的 `{"email": "...", "sent": true}`，避免枚举账户；如果账户待验证但 SMTP 发送失败，返回 `503 EMAIL_DELIVERY_FAILED`。
+对未知或已验证邮箱也会返回统一的 `{"email": "...", "sent": true}`，避免枚举账户。该接口按 IP、邮箱和全站维度共享限流；触发限流时统一返回 `429 RATE_LIMITED`，不会因邮箱是否存在而改变响应。如果账户待验证但 SMTP 发送失败，返回 `503 EMAIL_DELIVERY_FAILED`，并且不会使之前已发送的验证链接失效；限流存储本身繁忙时返回 `503 RATE_LIMIT_UNAVAILABLE`，不会伪装成 429。若邮件已发送但验证状态更新遇到数据库繁忙，返回 `503 VERIFICATION_STATE_UNAVAILABLE`，旧的有效链接仍保留。
+
+Gunicorn 访问日志只记录方法/路径/协议，不记录 query string；如使用 Nginx/Caddy，仍需在反向代理日志中删除或脱敏 `/verify-email` 的 query。
 
 ### `POST /api/auth/verify-email`
 
@@ -105,7 +110,7 @@ StudyFlow 是多用户邮箱账户应用。业务数据归属于当前登录 Ses
 {"ok": true, "data": {"email": "demo@example.invalid", "verified": true}}
 ```
 
-错误：`INVALID_VERIFICATION_TOKEN`（400）、`VERIFICATION_TOKEN_EXPIRED`（410）。
+验证还会检查 token 是否为该账户的 active token；只有 `used_at IS NULL`、未过期且 `id == active_verification_token_id` 的 token 才能成功。错误：`INVALID_VERIFICATION_TOKEN`（400）、`VERIFICATION_TOKEN_EXPIRED`（410）。
 
 ### `GET /verify-email?token=...`
 
@@ -274,7 +279,7 @@ AI 接口额外在顶层返回 `ai`：
 需要登录的健康检查。
 
 ```json
-{"ok":true,"data":{"status":"ok","app":"StudyFlow","version":"1.1.0","server_time":"..."}}
+{"ok":true,"data":{"status":"ok","app":"StudyFlow","version":"1.1.1","server_time":"..."}}
 ```
 
 ### `GET /api/health/db`

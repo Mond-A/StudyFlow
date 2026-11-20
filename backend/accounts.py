@@ -8,11 +8,12 @@ import secrets
 import sqlite3
 from datetime import datetime, timedelta
 
-from flask import current_app
+from flask import current_app, request
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from .db import get_db, query_one, transaction
 from .mailer import MailDeliveryError, send_verification_email
+from .rate_limit import RateLimitUnavailable, consume_limits
 from .utils.exceptions import APIError
 from .utils.timeutils import now_iso
 
@@ -52,17 +53,14 @@ def _token_hash(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
-def _issue_token(db, account_id: int) -> str:
+def _create_token(db, account_id: int) -> tuple[str, int]:
+    """Create a token without invalidating other still-valid tokens."""
     token = secrets.token_urlsafe(32)
     expires_at = (
         datetime.now().astimezone()
         + timedelta(hours=int(current_app.config["EMAIL_VERIFICATION_HOURS"]))
     ).isoformat(timespec="seconds")
-    db.execute(
-        "UPDATE email_verification_tokens SET used_at = ? WHERE account_id = ? AND used_at IS NULL",
-        (now_iso(), account_id),
-    )
-    db.execute(
+    cursor = db.execute(
         """
         INSERT INTO email_verification_tokens
             (account_id, token_hash, expires_at, created_at)
@@ -70,13 +68,132 @@ def _issue_token(db, account_id: int) -> str:
         """,
         (account_id, _token_hash(token), expires_at, now_iso()),
     )
-    return token
+    return token, int(cursor.lastrowid)
+
+
+def _activate_token(db, account_id: int, token_id: int) -> bool:
+    """Select the newest successfully delivered token as the active link.
+
+    The email_verified_at state is re-read inside BEGIN IMMEDIATE. If a
+    concurrent verification completed after resend started, this method must
+    not reactivate the account or its token. Token ids are monotonic and are
+    used as the ordering token.
+    """
+    db.execute("BEGIN IMMEDIATE")
+    row = db.execute(
+        "SELECT active_verification_token_id, email_verified_at "
+        "FROM auth_accounts WHERE id = ?",
+        (account_id,),
+    ).fetchone()
+    if row is None:
+        return False
+    if row["email_verified_at"]:
+        db.execute(
+            "UPDATE auth_accounts SET active_verification_token_id = NULL "
+            "WHERE id = ?",
+            (account_id,),
+        )
+        db.execute(
+            "UPDATE email_verification_tokens SET used_at = ? "
+            "WHERE id = ? AND used_at IS NULL",
+            (now_iso(), token_id),
+        )
+        return False
+
+    current = int(row["active_verification_token_id"] or 0)
+    active = max(current, token_id)
+    if active != current:
+        db.execute(
+            """
+            UPDATE auth_accounts
+            SET active_verification_token_id = ?, updated_at = ?
+            WHERE id = ?
+            """,
+            (active, now_iso(), account_id),
+        )
+    db.execute(
+        """
+        UPDATE email_verification_tokens
+        SET used_at = ?
+        WHERE account_id = ? AND used_at IS NULL AND id < ?
+        """,
+        (now_iso(), account_id, active),
+    )
+    return True
+
+
+def _discard_token_if_verified(account_id: int, token_id: int) -> bool:
+    """Short pre-SMTP transaction: do not send for an already-verified account."""
+    with transaction() as db:
+        db.execute("BEGIN IMMEDIATE")
+        row = db.execute(
+            "SELECT email_verified_at FROM auth_accounts WHERE id = ?",
+            (account_id,),
+        ).fetchone()
+        if row is None:
+            db.execute(
+                "DELETE FROM email_verification_tokens "
+                "WHERE id = ? AND account_id = ?",
+                (token_id, account_id),
+            )
+            return True
+        if row["email_verified_at"]:
+            db.execute(
+                "UPDATE auth_accounts SET active_verification_token_id = NULL "
+                "WHERE id = ?",
+                (account_id,),
+            )
+            db.execute(
+                "DELETE FROM email_verification_tokens "
+                "WHERE id = ? AND account_id = ?",
+                (token_id, account_id),
+            )
+            return True
+    return False
+
+
+def _consume_account_action_limits(action: str, email: str) -> None:
+    prefix = action.upper()
+    window = int(current_app.config["ACCOUNT_RATE_WINDOW_SECONDS"])
+    limits = [
+        (
+            f"{action}:global",
+            int(current_app.config[f"{prefix}_GLOBAL_LIMIT"]),
+            window,
+        ),
+        (
+            f"{action}:ip:{request.remote_addr or 'unknown'}",
+            int(current_app.config[f"{prefix}_IP_LIMIT"]),
+            window,
+        ),
+        (
+            f"{action}:email:{email}",
+            int(current_app.config[f"{prefix}_EMAIL_LIMIT"]),
+            window,
+        ),
+    ]
+    try:
+        retry_after = consume_limits(limits)
+    except RateLimitUnavailable as exc:
+        raise APIError(
+            "限流服务暂时不可用，请稍后再试",
+            code="RATE_LIMIT_UNAVAILABLE",
+            status_code=503,
+        ) from exc
+    if retry_after:
+        raise APIError(
+            "请求过于频繁，请稍后再试",
+            code="RATE_LIMITED",
+            status_code=429,
+            details={"retry_after": retry_after},
+        )
 
 
 def register_account(email_value: object, password_value: object, display_value: object = "") -> dict:
     email = normalize_email(email_value)
     password = validate_password(password_value)
     display_name = _display_name(display_value, email)
+    _consume_account_action_limits("register", email)
     existing = query_one("SELECT id FROM auth_accounts WHERE lower(email) = ?", (email,))
     if existing is not None:
         raise APIError("该邮箱已注册", code="EMAIL_ALREADY_REGISTERED", status_code=409)
@@ -117,7 +234,11 @@ def register_account(email_value: object, password_value: object, display_value:
                 ),
             )
             account_id = int(account_cursor.lastrowid)
-            token = _issue_token(db, account_id)
+            token, token_id = _create_token(db, account_id)
+            db.execute(
+                "UPDATE auth_accounts SET active_verification_token_id = ? WHERE id = ?",
+                (token_id, account_id),
+            )
     except sqlite3.IntegrityError as exc:
         raise APIError("该邮箱已注册", code="EMAIL_ALREADY_REGISTERED", status_code=409) from exc
 
@@ -141,14 +262,19 @@ def verify_email_token(token_value: object) -> dict:
     row = query_one(
         """
         SELECT t.id, t.account_id, t.expires_at, t.used_at,
-               a.email, a.email_verified_at
+               a.email, a.email_verified_at, a.active_verification_token_id
         FROM email_verification_tokens t
         JOIN auth_accounts a ON a.id = t.account_id
         WHERE t.token_hash = ?
         """,
         (token_hash,),
     )
-    if row is None or row["used_at"] or row["email_verified_at"]:
+    if (
+        row is None
+        or row["used_at"]
+        or row["email_verified_at"]
+        or row["active_verification_token_id"] != row["id"]
+    ):
         raise APIError("验证链接无效或已过期", code="INVALID_VERIFICATION_TOKEN", status_code=400)
     try:
         expires = datetime.fromisoformat(row["expires_at"])
@@ -165,7 +291,8 @@ def verify_email_token(token_value: object) -> dict:
         if updated.rowcount != 1:
             raise APIError("验证链接无效或已过期", code="INVALID_VERIFICATION_TOKEN", status_code=400)
         db.execute(
-            "UPDATE auth_accounts SET email_verified_at = ?, updated_at = ? WHERE id = ?",
+            "UPDATE auth_accounts SET email_verified_at = ?, "
+            "active_verification_token_id = NULL, updated_at = ? WHERE id = ?",
             (timestamp, timestamp, row["account_id"]),
         )
     return {"email": row["email"], "verified": True}
@@ -173,20 +300,54 @@ def verify_email_token(token_value: object) -> dict:
 
 def resend_verification(email_value: object) -> dict:
     email = normalize_email(email_value)
+    # Consume the same dimensions for known and unknown addresses before any
+    # account lookup, so the response cannot be used to enumerate accounts.
+    _consume_account_action_limits("resend", email)
     account = query_one(
         "SELECT id, email_verified_at FROM auth_accounts WHERE lower(email) = ?", (email,)
     )
     # Always return the same response shape for unknown/verified accounts.
     if account is None or account["email_verified_at"]:
         return {"email": email, "sent": True}
+
     with transaction() as db:
-        token = _issue_token(db, int(account["id"]))
+        token, token_id = _create_token(db, int(account["id"]))
+    try:
+        if _discard_token_if_verified(int(account["id"]), token_id):
+            return {"email": email, "sent": True}
+    except sqlite3.OperationalError as exc:
+        raise APIError(
+            "验证状态暂时无法确认，请稍后再试",
+            code="VERIFICATION_STATE_UNAVAILABLE",
+            status_code=503,
+        ) from exc
     try:
         send_verification_email(email, token)
     except MailDeliveryError as exc:
+        # Do not leave an undelivered token behind, and do not invalidate the
+        # previously delivered link when SMTP fails.
+        with transaction() as db:
+            db.execute(
+                "DELETE FROM email_verification_tokens "
+                "WHERE id = ? AND account_id = ? AND used_at IS NULL",
+                (token_id, int(account["id"])),
+            )
         raise APIError(
             "验证邮件暂时无法发送，请稍后重试",
             code="EMAIL_DELIVERY_FAILED",
+            status_code=503,
+        ) from exc
+
+    # Only after the new email is sent successfully, activate it and
+    # invalidate older links. Newer in-flight tokens are intentionally left
+    # alone so a concurrent successful resend cannot zero out all links.
+    try:
+        with transaction() as db:
+            _activate_token(db, int(account["id"]), token_id)
+    except sqlite3.OperationalError as exc:
+        raise APIError(
+            "验证邮件已发送，但验证状态暂时无法更新，请稍后再试",
+            code="VERIFICATION_STATE_UNAVAILABLE",
             status_code=503,
         ) from exc
     return {"email": email, "sent": True}

@@ -104,6 +104,15 @@ SMTP_USERNAME=<smtp-user>
 SMTP_PASSWORD=<smtp-password>
 SMTP_USE_TLS=true
 SMTP_USE_SSL=false
+
+# 可选：注册/重发验证邮件的共享 SQLite 限流（默认值如下）
+ACCOUNT_RATE_WINDOW_SECONDS=3600
+REGISTER_IP_LIMIT=20
+REGISTER_EMAIL_LIMIT=3
+REGISTER_GLOBAL_LIMIT=100
+RESEND_IP_LIMIT=20
+RESEND_EMAIL_LIMIT=5
+RESEND_GLOBAL_LIMIT=200
 ```
 
 `SESSION_COOKIE_SECURE=false` 只适用于本机纯 HTTP 开发；通过 HTTPS 反向代理提供服务时必须改为 `true`。
@@ -112,7 +121,7 @@ SMTP_USE_SSL=false
 
 **SMTP**：
 
-- 本地开发可先使用 `MAIL_BACKEND=console`：不会真实发送，只把验证 URL 写入终端/outbox。
+- 本地开发可先使用 `MAIL_BACKEND=console`：不会真实发送，只把验证 URL 记录在内存 outbox 供测试/调试；不再把 token 或完整 URL 写入应用日志。
 - 生产必须使用 `smtp`，并让 `MAIL_FROM` 的域与 SMTP 服务商授权一致；上线前实际收一封验证邮件确认链路。
 - `SMTP_USE_SSL=true` 使用 465/SMTPS，此时应把 `SMTP_USE_TLS=false`；使用 STARTTLS（如 587）时保持 `SMTP_USE_TLS=true`、`SMTP_USE_SSL=false`。
 - `PUBLIC_BASE_URL` 必须是用户能访问的外部地址；验证链接为 `${PUBLIC_BASE_URL}/verify-email?token=...`。
@@ -158,10 +167,22 @@ TRUST_PROXY=true
 PUBLIC_BASE_URL=https://studyflow.example.com
 ```
 
+`PUBLIC_BASE_URL` 在 `FLASK_ENV=production` 且非测试模式下会于启动阶段校验：必须是外部 HTTPS 地址，不能是 localhost、私网/保留 IP、明文 HTTP、带凭据或带 query/fragment；hostname 会做 DNS 解析，所有 A/AAAA 结果必须是公网地址，DNS 失败会 fail-closed。DNS 校验只代表启动时的解析结果，不能保证未来解析不变。配置错误时应用直接拒绝启动，而不是等发送邮件时失败。
+
 - 不要让公网直接访问 `127.0.0.1:5000`；防火墙只允许反向代理所在主机访问。
 - 反向代理必须保留 `Host`、`X-Forwarded-Proto` 和客户端 IP 头；不要信任来自任意客户端的转发头。
 - 本仓库不安装 Nginx、TLS 证书或 FRP/ChmlFrp；相关操作需由运维人员单独完成，不在本次文档变更中自动执行。
 - ChmlFrp/FRP 不是 HTTPS 的替代品；若使用，仍需确认端到端 TLS 和可信代理解析。
+
+### 访问日志脱敏
+
+v1.1.1 的 Gunicorn 配置已改为只记录请求方法、路径和协议（`%(m)s %(U)s %(H)s`），不再使用包含 query string 的原始请求行。
+
+反向代理仍需单独处理，否则 `/verify-email?token=...` 的 token 可能进入代理日志：
+
+- **Nginx**：默认 `$request`/`$request_uri` 包含 query。应使用自定义 `log_format`，采用 `$request_method $uri $server_protocol`一类的字段，并确保 `access_log` 使用该格式；不要记录 `$args`。
+- **Caddy**：默认 JSON access log 的 `request.uri` 包含 query。建议在 Caddy 的日志 filter/format 中对 `request.uri` 删除 `?` 及其后的 query，或对该路由关闭 access log；不同 Caddy 版本的 filter 语法不同，修改后先执行 `caddy validate`。不要只依赖 Gunicorn 配置。
+- 仓库不包含 Nginx 站点配置或 Caddyfile；这些必须在实际部署主机上由运维人员核对。不要为了脱敏而删除状态码、路径、耗时等正常诊断字段。
 
 ## 5. 初始化数据库（仅首次）
 

@@ -36,7 +36,7 @@ def _resolve_path(raw: str, default: str) -> Path:
 
 class Config:
     APP_NAME = "StudyFlow"
-    APP_VERSION = "1.1.0"
+    APP_VERSION = "1.1.1"
 
     # Authentication is mandatory. These deliberately have no usable default:
     # create_app() fails with a clear error until both are supplied.
@@ -54,6 +54,19 @@ class Config:
 
     LOGIN_MAX_ATTEMPTS = max(1, min(_env_int("LOGIN_MAX_ATTEMPTS", 5), 20))
     LOGIN_WINDOW_SECONDS = max(60, min(_env_int("LOGIN_WINDOW_SECONDS", 900), 86400))
+
+    # Shared registration/verification-email limits. The IP limit is
+    # intentionally generous for shared/NAT networks; the per-email and
+    # process-wide limits carry most of the abuse protection.
+    ACCOUNT_RATE_WINDOW_SECONDS = max(
+        60, min(_env_int("ACCOUNT_RATE_WINDOW_SECONDS", 3600), 86400)
+    )
+    REGISTER_IP_LIMIT = max(1, min(_env_int("REGISTER_IP_LIMIT", 20), 1000))
+    REGISTER_EMAIL_LIMIT = max(1, min(_env_int("REGISTER_EMAIL_LIMIT", 3), 100))
+    REGISTER_GLOBAL_LIMIT = max(1, min(_env_int("REGISTER_GLOBAL_LIMIT", 100), 10000))
+    RESEND_IP_LIMIT = max(1, min(_env_int("RESEND_IP_LIMIT", 20), 1000))
+    RESEND_EMAIL_LIMIT = max(1, min(_env_int("RESEND_EMAIL_LIMIT", 5), 100))
+    RESEND_GLOBAL_LIMIT = max(1, min(_env_int("RESEND_GLOBAL_LIMIT", 200), 10000))
     TRUST_PROXY = _env_bool("TRUST_PROXY", False)
 
     # Iteration 1 email accounts. Console is for local development only; a

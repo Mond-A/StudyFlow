@@ -1,12 +1,14 @@
 """Email delivery for account verification.
 
 Console delivery is a development backend: it records the message in a local
-outbox and logs the verification URL. It must not be presented as a real SMTP
-delivery. The SMTP backend uses only environment-backed configuration.
+in-memory outbox but never logs the verification URL or token. It must not be
+presented as a real SMTP delivery. The SMTP backend uses only environment-backed
+configuration.
 """
 
 from __future__ import annotations
 
+import os
 import smtplib
 import ssl
 from email.message import EmailMessage
@@ -43,10 +45,18 @@ def send_verification_email(recipient: str, token: str) -> str:
     )
 
     if backend == "console":
-        # Development only. The token is intentionally visible in the local
-        # console/outbox so a developer can complete verification.
+        # Console is development-only. Production must use SMTP; otherwise
+        # fail closed without writing the URL to an outbox or application log.
+        environment = os.getenv("FLASK_ENV", "production").strip().lower()
+        if environment == "production" and not current_app.config.get("TESTING"):
+            raise MailDeliveryError(
+                "Console mail backend is disabled in production; configure MAIL_BACKEND=smtp"
+            )
         _outbox().append({"recipient": recipient, "verification_url": url})
-        current_app.logger.warning("DEV verification email for %s: %s", recipient, url)
+        current_app.logger.warning(
+            "DEV verification email queued for %s; URL omitted from logs",
+            recipient,
+        )
         return url
 
     if backend != "smtp":

@@ -33,7 +33,9 @@ accesslog = str(_log_dir / "access.log")
 errorlog = str(_log_dir / "error.log")
 capture_output = True
 loglevel = os.getenv("GUNICORN_LOG_LEVEL", "info")
-access_log_format = '%(h)s %(l)s %(u)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s" %(D)sus'
+# Use method/path/protocol instead of the raw request line. This keeps useful
+# diagnostics while excluding query strings (including verification tokens).
+access_log_format = '%(h)s %(l)s %(u)s %(t)s "%(m)s %(U)s %(H)s" %(s)s %(b)s "%(f)s" "%(a)s" %(D)sus'
 
 # The reverse proxy runs on the same host. Do not trust arbitrary LAN clients.
 forwarded_allow_ips = "127.0.0.1"

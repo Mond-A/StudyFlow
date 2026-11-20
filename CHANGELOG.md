@@ -1,5 +1,29 @@
 # Changelog
 
+## v1.1.1 — 2026-11-19
+
+### 修复
+
+- 为注册和重发验证邮件增加共享 SQLite 限流：覆盖 IP、邮箱和全局发送量，并保留适合共享公网 IP 的较宽 IP 配额。
+- 重发验证邮件时，先发送新邮件，成功后才激活新 token；SMTP 失败时保留旧的有效验证链接。
+- 使用账户当前有效 token 指针和自增 token id 处理并发重发；并发成功发送不会互相作废到零有效 token。
+- `auth_accounts` 增加可空的 `active_verification_token_id`，启动迁移在 SQLite 写锁内串行执行并回填最新有效 token，兼容 v1.1.0 数据库和多 Worker 启动。
+- 验证接口同时检查 token 的 `used_at`、`expires_at` 和 active 指针；旧 token 不会因为迁移被无故取消，多个旧 token 只保留最新 active。
+- 重发在 SMTP 前和激活事务内都会复核 `email_verified_at`；验证与重发并发时不会向已验证账户重新设置 active token，也不会在确认已验证后继续发送邮件。
+- 验证 token 清理同时约束 token id 和 account id，避免清理操作误删其他账户 token 或清空其他账户 active 指针。
+- 生产环境启动时校验 `PUBLIC_BASE_URL`：必须解析到公网地址的外部 HTTPS URL，拒绝 localhost、明文 HTTP、私网/保留地址、异常端口、凭据和 query/fragment；DNS 失败 fail-closed，测试环境仍允许本地 HTTP。
+- 限流存储遇到 SQLite 连接/锁/繁忙时返回明确的 `503 RATE_LIMIT_UNAVAILABLE`，并正确回滚，不伪装成 429。
+- Gunicorn 访问日志改为只记录方法/路径/协议，不再记录查询字符串中的验证 token。
+- console 邮件后端不再输出包含 token 的完整验证 URL；生产环境误用 console 时直接失败，不写 outbox 或应用日志。
+- 验证失败、注册邮件发送失败、未验证登录场景下，前端提供明确的重发验证入口。
+- 新增注册/重发限流、并发重发、并发验证、SMTP 后激活前验证、真实事务回滚、token 所有权、并发/多进程迁移、旧 token 回填、SMTP 失败、数据库异常、DNS 校验、API 验证、日志脱敏和生产邮件后端保护测试。
+
+### 已知限制
+
+- 自动定期备份仍未实现。
+- SMTP 真实投递和生产恢复演练仍需部署环境验证。
+- Caddy 等外部反向代理的访问日志需由运维人员单独配置为不记录 query string。
+
 ## v1.1.0 — 2026-11-18
 
 ### 新功能

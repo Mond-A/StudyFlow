@@ -1,6 +1,8 @@
 # StudyFlow
 
-> 当前发布版本：`1.1.0`
+> 当前发布版本：`1.1.1`
+>
+> 从 v1.1.0 升级：见 [v1.1.1 升级说明](docs/UPGRADE_v1.1.1.md)
 >
 > AI 智能学习管理平台 · MVP（约 70% 完成度）
 
@@ -159,7 +161,7 @@ python run.py
 
 启动前必须把随机生成的 `SECRET_KEY` 和 `STUDYFLOW_PASSWORD_HASH` 写入 `.env`；缺少时应用会拒绝启动。`STUDYFLOW_PASSWORD_HASH` 用于启动校验和旧数据库的过渡登录，不是新用户的正常登录方式；新用户通过邮箱注册并完成验证。
 
-打开 <http://127.0.0.1:5000>。首次使用请打开 <http://127.0.0.1:5000/login?mode=register> 创建邮箱账户；本地默认 `MAIL_BACKEND=console`，验证链接会打印在后端终端，而不会真的发邮件。要接收真实验证邮件，请按[部署说明](docs/DEPLOY_DEBIAN_ARM64.md)配置 SMTP。
+打开 <http://127.0.0.1:5000>。首次使用请打开 <http://127.0.0.1:5000/login?mode=register> 创建邮箱账户；本地默认 `MAIL_BACKEND=console` 不会真的发邮件，只把验证信息记录在内存 outbox 供测试/调试，且不会把 token 或完整 URL 写入应用日志。要手工接收验证邮件，请按[部署说明](docs/DEPLOY_DEBIAN_ARM64.md)配置 SMTP。
 
 如果不想手动敲命令，Windows 可双击/执行：
 
@@ -263,7 +265,7 @@ data/uploads/
 | --- | --- | --- |
 | `HOST` | `127.0.0.1` | Flask 监听地址 |
 | `PORT` | `5000` | Flask 端口 |
-| `FLASK_ENV` | `production` | 不要用 development/debug 对外提供服务 |
+| `FLASK_ENV` | 示例 `development` | 生产必须显式设为 `production`；不要用 debug 对外服务 |
 | `SECRET_KEY` | 无默认值 | **必填**；至少 32 位随机值 |
 | `STUDYFLOW_PASSWORD_HASH` | 无默认值 | **必填**；启动校验与旧库过渡登录兼容；新用户不使用它登录 |
 | `SESSION_COOKIE_SAMESITE` | `Lax` | `Lax` / `Strict` / `None` |
@@ -271,9 +273,16 @@ data/uploads/
 | `SESSION_LIFETIME_HOURS` | `12` | 登录会话最长有效时间 |
 | `LOGIN_MAX_ATTEMPTS` | `5` | 共享登录限流允许的失败次数 |
 | `LOGIN_WINDOW_SECONDS` | `900` | 登录失败固定窗口秒数 |
+| `ACCOUNT_RATE_WINDOW_SECONDS` | `3600` | 注册/重发验证邮件的共享限流窗口 |
+| `REGISTER_IP_LIMIT` | `20` | 每 IP 注册窗口上限；对共享公网 IP 留有余量 |
+| `REGISTER_EMAIL_LIMIT` | `3` | 每邮箱注册窗口上限 |
+| `REGISTER_GLOBAL_LIMIT` | `100` | 全站注册窗口上限 |
+| `RESEND_IP_LIMIT` | `20` | 每 IP 重发验证邮件窗口上限 |
+| `RESEND_EMAIL_LIMIT` | `5` | 每邮箱重发验证邮件窗口上限 |
+| `RESEND_GLOBAL_LIMIT` | `200` | 全站重发验证邮件窗口上限 |
 | `MAIL_BACKEND` | `console` | `console` 仅本地开发；生产使用 `smtp` |
 | `MAIL_FROM` | `StudyFlow <no-reply@localhost>` | 验证邮件发件人 |
-| `PUBLIC_BASE_URL` | `http://127.0.0.1:5000` | 验证链接的公开基地址；生产必须是 HTTPS 外部地址 |
+| `PUBLIC_BASE_URL` | `http://127.0.0.1:5000` | 验证链接的公开基地址；生产必须是外部 HTTPS 地址，启动时会做 DNS 解析和公网地址校验 |
 | `EMAIL_VERIFICATION_HOURS` | `24` | 验证链接有效期 |
 | `PASSWORD_MIN_LENGTH` | `12` | 新账户密码最小长度 |
 | `SMTP_HOST` | 空 | SMTP 主机；生产必填 |
@@ -471,7 +480,7 @@ SQLite，所有时间字段文本化存储 ISO 时间，业务日期为 `YYYY-MM
 | `users` | 用户资料、显示名、资料邮箱、每日目标、番茄钟/休息分钟、时区 |
 | `auth_accounts` | 登录邮箱、scrypt 密码哈希、验证时间；与 `users` 一对一 |
 | `email_verification_tokens` | 验证 token 的 SHA-256、过期时间、使用时间 |
-| `login_rate_limits` | 共享登录失败计数（只存 SHA-256 键，不存原始 IP/邮箱） |
+| `login_rate_limits` | 共享登录、注册、重发验证邮件计数（只存 SHA-256 键，不存原始 IP/邮箱；保留 24 小时后机会性清理） |
 | `tasks` | 标题、学科、说明、截止、预计/实际分钟、难度、优先级、状态、计划日期/开始/时长、来源、AI 元信息 |
 | `grades` | 学科、考试、得分、满分、日期、备注 |
 | `notes` | 标题、学科、Markdown、来源图片、检查结果 JSON、知识图 JSON |
@@ -562,7 +571,7 @@ python scripts/test_ai_connection.py --capability all
 ## 已知限制与未实测项
 
 1. **邮箱账户是主流程，仍有旧库过渡入口**。新用户通过邮箱注册和验证登录；只有数据库里还没有邮箱账户时，`STUDYFLOW_PASSWORD_HASH` 对应的旧密码入口才生效。没有角色/管理员越权查看接口，也没有密码找回或 2FA。
-2. **验证邮件依赖 SMTP**。`MAIL_BACKEND=console` 只适合本地开发，它把验证 URL 写到终端；生产必须配置 SMTP 和可外部访问的 `PUBLIC_BASE_URL`，否则注册会以 `EMAIL_DELIVERY_FAILED` 失败，账户保持未验证。
+2. **验证邮件依赖 SMTP**。`MAIL_BACKEND=console` 只适合本地开发，它把验证信息记录在内存 outbox，不写 token/URL 到应用日志；生产必须配置 SMTP 和可外部访问的 `PUBLIC_BASE_URL`，否则注册会以 `EMAIL_DELIVERY_FAILED` 失败，账户保持未验证。
 3. **访客模式不是云端账户**。数据仅在当前浏览器 IndexedDB；清除站点数据/换设备可能丢失，且访客模式不开放 AI、演示数据载入和跨设备同步。导入必须由用户明确确认，导入后本地访客数据不会自动删除。
 4. **真实模型的可用性与网络环境相关**。本次账号/网络下 Qwen `qwen3.8-flash`（含图片）和 DeepSeek 文本均实测通过；DeepSeek 响应模型名为 `deepseek-flash`（请求配置仍保留 `deepseek-chat` 别名）。换账号、换模型或换网络后应以 `scripts/test_ai_connection.py` 重新验证，供应商拒绝时会明确返回 `AI_REQUEST_REJECTED` 或 `AI_AUTH_ERROR`。
 5. **演示模式不执行真实 OCR**。图片识别只返回明显标记的示例结构，不会假装已识别图片内容。

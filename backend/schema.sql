@@ -146,6 +146,7 @@ CREATE TABLE IF NOT EXISTS auth_accounts (
     email             TEXT NOT NULL COLLATE NOCASE UNIQUE,
     password_hash     TEXT NOT NULL,
     email_verified_at TEXT,
+    active_verification_token_id INTEGER,
     created_at        TEXT NOT NULL,
     updated_at        TEXT NOT NULL
 );

@@ -38,6 +38,10 @@
     errorBox.hidden = true;
   }
 
+  function revealResend() {
+    if (resendButton) resendButton.hidden = false;
+  }
+
   function setMode(mode) {
     var isRegister = mode === "register";
     loginForm.hidden = isRegister;
@@ -63,10 +67,17 @@
 
   if (params.get("mode") === "register") setMode("register");
   if (params.get("verified") === "1") showStatus("邮箱验证成功，请使用新账户登录。");
-  if (params.get("verified") === "0") showError("验证链接无效或已过期，请重新发送验证邮件。");
+  if (params.get("verified") === "0") {
+    showError("验证链接无效或已过期，请重新发送验证邮件。");
+    revealResend();
+  }
   if (params.get("error") === "rate") showError("登录尝试过于频繁，请稍后再试。");
+  if (params.get("error") === "service") showError("登录服务暂时不可用，请稍后再试。");
   if (params.get("error") === "invalid") showError("邮箱或密码错误，请重试。");
-  if (params.get("error") === "unverified") showError("请先完成邮箱验证，再登录账户。");
+  if (params.get("error") === "unverified") {
+    showError("请先完成邮箱验证，再登录账户。");
+    revealResend();
+  }
 
   if (toggle) {
     toggle.addEventListener("click", function () {
@@ -214,6 +225,11 @@
         showStatus("账户已创建。请查收邮箱中的验证链接，完成验证后即可登录。");
         resendButton.hidden = false;
         password.focus();
+      } else if (payload && payload.error && payload.error.code === "EMAIL_DELIVERY_FAILED") {
+        email.value = emailValue;
+        setMode("login");
+        showError(errorMessage(payload, "账户已创建，但验证邮件发送失败，请重新发送。"));
+        revealResend();
       } else {
         showError(errorMessage(payload, "注册失败，请稍后重试。"));
       }
